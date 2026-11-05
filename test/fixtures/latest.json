@@ -1,0 +1,13 @@
+{
+  "version": "1.0.1",
+  "min_version": "1.0.0",
+  "notes": "Test notes",
+  "released_at": "2026-09-24T11:18:20+00:00",
+  "platforms": {
+    "linux": {
+      "url": "https://app.hypermed.co.tz/updates/hypermed-1.0.1-linux-x64.tar.gz",
+      "sha256": "1cf0c50b654aee0f83020019d061b8e7ad32c00ea7df86ae4a995d495c96d9dd",
+      "size": 14683153
+    }
+  }
+}

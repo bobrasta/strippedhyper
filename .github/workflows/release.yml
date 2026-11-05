@@ -1,0 +1,132 @@
+# Builds + publishes a desktop release when a v* tag is pushed.
+# See release/README.md for the process and the required secrets.
+name: Release desktop app
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 1.4.0) — normally use a tag instead'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.47.1'
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then V="${{ github.event.inputs.version }}"; else V="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Release notes from tag message
+        run: |
+          # actions/checkout leaves the pushed tag as a lightweight ref, so
+          # %(contents) would read the commit message. Re-fetch the real
+          # annotated tag object first.
+          if [ "${{ github.ref_type }}" = "tag" ]; then git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"; fi
+          [ "$(git cat-file -t "refs/tags/${GITHUB_REF_NAME}" 2>/dev/null)" = "tag" ] || { echo "Hypermed ${{ steps.v.outputs.version }}" > notes.txt; exit 0; }
+          git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' | sed '/-----BEGIN PGP/,$d' > notes.txt || true
+          [ -s notes.txt ] || echo "Hypermed ${{ steps.v.outputs.version }}" > notes.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notes
+          path: notes.txt
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build
+        shell: bash
+        run: |
+          EXTRA=""
+          if [ -n "${{ vars.API_BASE_URL }}" ]; then EXTRA="--dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}"; fi
+          if [ -n "${{ vars.UPDATE_BASE_URL }}" ]; then EXTRA="$EXTRA --dart-define=UPDATE_FEED_URL=${{ vars.UPDATE_BASE_URL }}/latest.json"; fi
+          flutter build windows --release --build-name=${{ needs.version.outputs.version }} --build-number=${{ github.run_number }} $EXTRA
+      - name: Bundle the VC++ runtime (machines without the redistributable)
+        shell: pwsh
+        run: |
+          $rel = "build\windows\x64\runner\Release"
+          foreach ($dll in 'msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll') {
+            Copy-Item "$env:WINDIR\System32\$dll" $rel -ErrorAction SilentlyContinue
+          }
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc "/DAppVersion=${{ needs.version.outputs.version }}" "/DSourceDir=$PWD\build\windows\x64\runner\Release" installer\windows\hypermed.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/Hypermed-Setup-*.exe
+
+  # Windows only (user, 2026-11-03): the Linux build was dropped; add a
+  # linux job back here and to publish's needs/manifest/upload to restore it.
+  publish:
+    needs: [version, windows]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      BASE_URL: ${{ vars.UPDATE_BASE_URL || 'https://app.hypermed.co.tz/updates' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Write latest.json
+        run: |
+          python3 tool/make_update_manifest.py --version "$VERSION" --base-url "$BASE_URL" \
+            --windows dist/Hypermed-Setup-$VERSION.exe \
+            --notes-file dist/notes.txt --out dist/latest.json
+      - name: Sign latest.json
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          # Apps reject an unsigned/mis-signed feed, so never publish one.
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then echo "UPDATE_SIGNING_KEY secret is not set" >&2; exit 1; fi
+          pip install --quiet cryptography
+          python3 tool/sign_update_manifest.py dist/latest.json
+      - name: Upload to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_UPDATES_KEY: ${{ secrets.VPS_UPDATES_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_UPDATES_KEY" ]; then echo "VPS secrets not set — skipping upload"; exit 0; fi
+          mkdir -p ~/.ssh
+          echo "$VPS_UPDATES_KEY" > ~/.ssh/updates && chmod 600 ~/.ssh/updates
+          echo "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The key's forced command (hypermed-publish-update on the VPS)
+          # only accepts release files, and publishes the feed last.
+          tar -C dist -cf - Hypermed-Setup-$VERSION.exe latest.json latest.json.sig \
+            | ssh -i ~/.ssh/updates -o IdentitiesOnly=yes "hmdeploy@$VPS_HOST"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', env.VERSION) }}
+          body_path: dist/notes.txt
+          files: |
+            dist/Hypermed-Setup-*.exe
+            dist/latest.json
+            dist/latest.json.sig
