@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class ExpenseResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id'            => $this->id,
+            'name'          => $this->name,
+            'category_id'   => $this->category_id,
+            'category_name' => $this->category?->name,
+            'amount'        => $this->amount,
+            'tax_rate'      => $this->tax_rate,
+            'tax_amount'    => $this->tax_amount,
+            'gross_amount'  => $this->gross_amount,
+            'payment_mode'  => $this->payment_mode,
+            'expense_date'  => $this->expense_date?->toDateString(),
+            'reference'     => $this->reference,
+            'notes'         => $this->notes,
+            'created_by_name' => $this->createdBy?->name,
+            'created_at'    => $this->created_at?->toIso8601String(),
+            'status'                      => $this->status,
+            'requires_director_approval'  => (bool) $this->requires_director_approval,
+            'escalation_reason'           => $this->escalation_reason,
+            'escalated_by'                => $this->escalated_by,
+            'escalated_at'                => $this->escalated_at?->toIso8601String(),
+            'reviewed_by'                 => $this->reviewed_by,
+            'reviewer_name'               => $this->reviewer?->name,
+            'approver_id'                 => $this->approver_id,
+            'approver_name'               => $this->approver?->name,
+            // A team leader filters, then it goes on to their manager.
+            'approver_is_filter'          => $this->approver?->role === 'team_leader' && $this->status === 'pending_manager',
+            'next_approver_name'          => $this->approver?->role === 'team_leader' ? $this->approver?->manager?->name : null,
+            'reviewed_at'                 => $this->reviewed_at?->toIso8601String(),
+            'rejection_reason'            => $this->rejection_reason,
+            'payment_initiated_by'        => $this->payment_initiated_by,
+            'payment_initiated_by_name'   => $this->paymentInitiatedBy?->name,
+            'payment_initiated_at'        => $this->payment_initiated_at?->toIso8601String(),
+            'payment_method'              => $this->payment_method,
+            'payment_reference'           => $this->payment_reference,
+            'paid_by'                     => $this->paid_by,
+            'paid_by_name'                => $this->paidBy?->name,
+            'paid_at'                     => $this->paid_at?->toIso8601String(),
+            'is_recurring'                => (bool) $this->is_recurring,
+            'recur_interval'              => $this->recur_interval,
+            'recur_interval_type'         => $this->recur_interval_type,
+            'recur_repeat_on'             => $this->recur_repeat_on,
+            'recur_repetitions'           => $this->recur_repetitions,
+            'recur_stopped_on'            => $this->recur_stopped_on?->toDateString(),
+            'recur_parent_id'             => $this->recur_parent_id,
+        ];
+    }
+}

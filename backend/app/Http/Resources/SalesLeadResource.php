@@ -1,0 +1,43 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class SalesLeadResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id'                 => $this->id,
+            'hospital_id'        => $this->hospital_id,
+            'hospital'           => new HospitalResource($this->whenLoaded('hospital')),
+            'hospital_name_raw'  => $this->hospital_name_raw,
+            'contact_id'         => $this->contact_id,
+            'contact_name_raw'   => $this->contact_name_raw,
+            'contact_email'      => $this->whenLoaded('contact', fn () => $this->contact?->email),
+            'contact_phone'      => $this->whenLoaded('contact', fn () => $this->contact?->phone),
+            'source'             => $this->source,
+            'source_notes'       => $this->source_notes,
+            'notes'              => $this->notes,
+            'machine_type'       => $this->machine_type,
+            'deal_value'         => $this->deal_value,
+            'days_in_stage'      => $this->days_in_stage,
+            'days_open'          => (int) $this->created_at->diffInDays(now()),
+            'stage'              => $this->stage,
+            'demo_date'          => $this->demo_date?->toDateString(),
+            'follow_up_date'     => $this->follow_up_date?->toDateString(),
+            'expected_close_date' => $this->expected_close_date?->toDateString(),
+            'forecast_category'  => $this->forecast_category,
+            'assigned_to'        => $this->assigned_to,
+            'assignee'           => new UserResource($this->whenLoaded('assignee')),
+            'events'             => $this->whenLoaded('events', fn () => $this->events->map(fn ($e) => [
+                'type' => $e->type, 'title' => $e->title, 'note' => $e->note,
+                'by' => $e->createdBy?->name, 'at' => $e->created_at?->toIso8601String(),
+            ])),
+            'created_at'         => $this->created_at?->toIso8601String(),
+            'updated_at'         => $this->updated_at?->toIso8601String(),
+        ];
+    }
+}

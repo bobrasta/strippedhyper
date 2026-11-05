@@ -1,0 +1,58 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Caches config/routes, runs migrations, bootstraps the permission catalog,
+# the test access-control accounts, and the real facility/machine import
+# (all three seeders guard themselves and no-op on every deploy after their
+# first successful run), then starts the built-in PHP server. Railway gives
+# each service a $PORT — artisan serve binds to it automatically.
+#
+# `(php artisan schedule:work &)` backgrounds the scheduler loop in its own
+# subshell before the final `&&` moves on to `artisan serve` — without this,
+# routes/console.php's Schedule::command() entries (leads:follow-up-reminders,
+# hr:check-expirations, expenses:generate-recurring) are registered but never
+# actually run, since Railway has no OS-level cron to fire `schedule:run`
+# itself. The subshell exits immediately (backgrounding succeeds instantly),
+# so migrations/seeders still fully complete before `artisan serve` starts —
+# only the scheduler loop keeps running in the background afterward.
+#
+# DocumentSequenceSeeder runs here (not just once by hand) because it's load-
+# bearing, not cosmetic: DocumentNumberService::next() hard-aborts with a 500
+# if a document type has no sequence row, so every invoice/PO/quotation/
+# sales-order/vendor-bill creation would break the moment this deploy went
+# live without it. Self-guards via an exists() check, so it no-ops on every
+# deploy after the first.
+#
+# NotificationTemplateSeeder is here for the same reason, one notch lower
+# stakes: NotificationTemplateService::render() degrades gracefully to a
+# generic fallback message rather than a 500 if a template row is missing,
+# but every notification would show that fallback instead of real wording
+# until someone remembered to seed it by hand. Also self-guards.
+#
+# `storage:link` (--force since every deploy is a genuinely fresh
+# container filesystem — public/storage never already exists at start,
+# unlike the seeders above) creates the public/storage -> storage/app/public
+# symlink. Never run anywhere in this deploy pipeline before — every file
+# upload this app has ever shipped (ticket attachments, service reports,
+# vendor receipts, delivery notes, and now avatars) has been writing real
+# files to storage/app/public and returning a public URL for them, but
+# without this symlink that URL 404s: public/storage was just an empty
+# directory, not a link to where the files actually are. Paired with the
+# new persistent volume mounted at storage/app/public (previously
+# ephemeral — wiped on every deploy) so uploads now both persist AND are
+# actually reachable at the URL the app hands back.
+#
+# The server is PHP's built-in `-S` server started directly, not `artisan
+# serve`: that is exactly what artisan serve runs under the hood (same
+# router script, same public/ working dir, single worker), but artisan
+# serve gives no way to pass ini flags to the child process. Without the
+# -d flags PHP's defaults apply (upload_max_filesize=2M, post_max_size=8M —
+# confirmed live via railway ssh 2026-09-24), so any upload over 2MB (phone
+# photos, scanned receipts, PDF service reports) failed with "The file
+# failed to upload." before Laravel validation ever ran.
+startCommand = "php artisan config:cache && php artisan route:cache && php artisan storage:link --force && php artisan migrate --force && php artisan db:seed --class=PermissionSeeder --force && php artisan db:seed --class=RealFacilityImportSeeder --force && php artisan db:seed --class=UpdateFacilityCoordinatesSeeder --force && php artisan db:seed --class=ImportGovernmentFacilityCoordinatesSeeder --force && php artisan db:seed --class=ImportNationalFacilityRegistrySeeder --force && php artisan db:seed --class=RemoveDemoDataSeeder --force && php artisan db:seed --class=NormalizeKilimanjaroDistrictsSeeder --force && php artisan db:seed --class=FlowDepartmentSeeder --force && php artisan db:seed --class=DocumentSequenceSeeder --force && php artisan db:seed --class=NotificationTemplateSeeder --force && (php artisan schedule:work &) && cd public && php -d upload_max_filesize=20M -d post_max_size=25M -S 0.0.0.0:$PORT ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+healthcheckPath = "/up"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

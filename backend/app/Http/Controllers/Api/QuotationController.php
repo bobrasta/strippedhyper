@@ -1,0 +1,358 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Api\Concerns\FiltersByPeriod;
+use App\Http\Controllers\Controller;
+use App\Http\Resources\QuotationResource;
+use App\Http\Resources\SalesOrderResource;
+use App\Models\AppNotification;
+use App\Models\Quotation;
+use App\Models\SalesOrder;
+use App\Models\User;
+use App\Services\EffectivePermissionResolver;
+use App\Services\NotificationTemplateService;
+use App\Services\ApprovalService;
+use App\Services\DocumentNumberService;
+use App\Services\DocumentPdfService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
+use App\Support\DocumentTerms;
+use App\Support\LineDiscount;
+use App\Support\Tin;
+
+class QuotationController extends Controller
+{
+    use FiltersByPeriod;
+
+    // ── PDF / sharing ─────────────────────────────────────────────────────────────
+
+    public function pdf(Quotation $quotation, DocumentPdfService $pdfService)
+    {
+        return $pdfService->quotationPdf($quotation);
+    }
+
+    public function shareLink(Quotation $quotation)
+    {
+        $expiresAt = now()->addDays(7);
+        $url = URL::temporarySignedRoute('quotations.pdf-public', $expiresAt, ['quotation' => $quotation->id]);
+
+        return response()->json(['data' => [
+            'share_url'  => $url,
+            'expires_at' => $expiresAt->toIso8601String(),
+        ]]);
+    }
+
+    private function calcTotals(array $items, int $discountAmount = 0, int $taxAmount = 0): array
+    {
+        $subtotal = collect($items)->sum(fn ($i) => LineDiscount::net($i, 'discount_amount'));
+
+        return [
+            'subtotal'        => $subtotal,
+            'discount_amount' => $discountAmount,
+            'tax_amount'      => $taxAmount,
+            'total_amount'    => $subtotal - $discountAmount + $taxAmount,
+        ];
+    }
+
+    // Mirrors SalesLeadController::index()'s scoping: a plain 'sales' rep
+    // saw every quotation in the company (client, value, discount) with no
+    // ownership filter at all.
+    public function index(Request $request)
+    {
+        $quotations = Quotation::with(['createdBy'])
+            ->when(! $request->user()->hasSalesViewFullNumbers(), fn ($q) => $q->where('created_by', $request->user()->id))
+            ->when($request->status,      fn ($q, $s) => $q->where('status', $s))
+            ->when($request->search,      fn ($q, $s) => $q->where(function ($q) use ($s) {
+                $q->where('client_name', 'like', "%$s%")
+                  ->orWhere('quotation_number', 'like', "%$s%");
+            }))
+            ->tap(fn ($q) => $this->applyPeriod($q, $request, 'created_at'))
+            ->latest()
+            ->paginate($this->perPage($request, 25));
+
+        return QuotationResource::collection($quotations);
+    }
+
+    public function store(Request $request, ApprovalService $approval, DocumentNumberService $documentNumbers)
+    {
+        abort_if(! $request->user()->hasSalesCreateAuthority() && ! $request->user()->hasQuotationPrepareAuthority(), 403,
+            'You are not authorised to create quotations.');
+
+        $data = $request->validate([
+            'lead_id'                   => 'nullable|exists:sales_leads,id',
+            'client_name'               => 'required|string|max:200',
+            'client_contact'            => 'nullable|string|max:200',
+            'client_email'              => 'nullable|email|max:200',
+            'client_tin'                => ['required', ...Tin::RULE],
+            'valid_until'               => 'nullable|date',
+            'currency'                  => 'nullable|string|max:10',
+            'discount_amount'           => 'nullable|integer|min:0',
+            'tax_amount'                => 'nullable|integer|min:0',
+            'notes'                     => 'nullable|string',
+            'terms'                     => 'nullable|string',
+            ...DocumentTerms::RULES,
+            'items'                     => 'required|array|min:1',
+            'items.*.inventory_item_id' => 'nullable|exists:inventory_items,id',
+            'items.*.description'       => 'required|string|max:300',
+            'items.*.unit_of_measure'   => 'nullable|string|max:30',
+            'items.*.quantity'          => 'required|integer|min:1',
+            'items.*.unit_price'        => 'required|integer|min:0',
+            'items.*.discount_percent'  => 'nullable|numeric|min:0|max:100',
+            'items.*.discount_amount'   => 'nullable|integer|min:0',
+        ], ['client_tin.regex' => Tin::MESSAGE, 'client_tin.required' => 'Client TIN is required.']);
+        $data['client_tin'] = Tin::normalize($data['client_tin']);
+        LineDiscount::assertValid($data['items'], 'items', 'discount_amount');
+
+        return DB::transaction(function () use ($data, $request, $approval, $documentNumbers) {
+            $totals = $this->calcTotals(
+                $data['items'],
+                $data['discount_amount'] ?? 0,
+                $data['tax_amount'] ?? 0,
+            );
+
+            // Gross (list-price) subtotal, ignoring line-level discounts, so the
+            // approval check catches heavy line discounts even when the header
+            // discount_amount is 0 — otherwise they'd be invisible to it.
+            $grossSubtotal = collect($data['items'])->sum(fn ($i) => $i['quantity'] * $i['unit_price']);
+            $effectiveDiscount = ($grossSubtotal - $totals['subtotal']) + $totals['discount_amount'];
+
+            $approvalFields = $approval->evaluate(
+                $request->user(), $grossSubtotal, $effectiveDiscount, $totals['total_amount'],
+            );
+
+            $quotation = Quotation::create([
+                'quotation_number' => $documentNumbers->next('quotation'),
+                'lead_id'          => $data['lead_id'] ?? null,
+                'client_name'      => $data['client_name'],
+                'client_contact'   => $data['client_contact'] ?? null,
+                'client_email'     => $data['client_email'] ?? null,
+                'client_tin'       => $data['client_tin'],
+                'status'           => 'draft',
+                'valid_until'      => $data['valid_until'] ?? null,
+                'currency'         => $data['currency'] ?? 'TZS',
+                'notes'            => $data['notes'] ?? null,
+                'terms'            => $data['terms'] ?? null,
+                'term_items'       => DocumentTerms::normalize($data['term_items'] ?? null),
+                'created_by'       => $request->user()->id,
+                ...$totals,
+                ...$approvalFields,
+            ]);
+
+            foreach ($data['items'] as $item) {
+                $lineTotal = LineDiscount::net($item, 'discount_amount');
+                $quotation->items()->create([
+                    'inventory_item_id' => $item['inventory_item_id'] ?? null,
+                    'description'       => $item['description'],
+                    'unit_of_measure'   => $item['unit_of_measure'] ?? 'pcs',
+                    'quantity'          => $item['quantity'],
+                    'unit_price'        => $item['unit_price'],
+                    'discount_percent'  => $item['discount_percent'] ?? 0,
+                    'discount_amount'   => (int) ($item['discount_amount'] ?? 0),
+                    'total_price'       => $lineTotal,
+                ]);
+            }
+
+            // Prepared by someone who can't send it (an engineer): it lands
+            // with the people who issue quotations.
+            if (! $request->user()->hasSalesIssueQuotationAuthority()) {
+                $this->notifyIssuers($quotation, $request->user());
+            }
+
+            return (new QuotationResource($quotation->load(['createdBy', 'items.inventoryItem'])))
+                ->response()->setStatusCode(201);
+        });
+    }
+
+    /**
+     * Edit/delete: sales staff with sales.edit, or the person who prepared a
+     * quotation with sales.prepare_quotation (engineers), on their own only.
+     */
+    private function assertCanChange(Request $request, Quotation $quotation, string $verb): void
+    {
+        $user = $request->user();
+        abort_if(! $user->hasSalesEditAuthority()
+            && ! ($user->hasQuotationPrepareAuthority() && (int) $quotation->created_by === $user->id),
+            403, "You are not authorised to {$verb} this quotation.");
+    }
+
+    /** Active users who can send quotations and see everyone's (an engineer's draft is otherwise invisible to a plain rep). */
+    private function notifyIssuers(Quotation $quotation, User $preparer): void
+    {
+        $resolver = app(EffectivePermissionResolver::class);
+        $rendered = app(NotificationTemplateService::class)->render('quotation.prepared', [
+            'preparer' => $preparer->name,
+            'quotation_number' => $quotation->quotation_number,
+            'client_name' => $quotation->client_name,
+            'total' => 'TZS ' . number_format((int) $quotation->total_amount),
+        ]);
+        User::where('is_active', true)->whereKeyNot($preparer->id)->get()
+            ->filter(fn (User $u) => $resolver->can($u, 'sales.issue_quotation') && $resolver->can($u, 'sales.view_full_numbers'))
+            ->each(fn (User $u) => AppNotification::create($rendered + [
+                'user_id' => $u->id, 'entity_type' => 'quotation', 'entity_id' => $quotation->id, 'is_read' => false,
+            ]));
+    }
+
+    public function show(Quotation $quotation)
+    {
+        $quotation->load(['createdBy', 'approvedBy', 'items.inventoryItem', 'lead', 'salesOrder']);
+        return new QuotationResource($quotation);
+    }
+
+    public function update(Request $request, Quotation $quotation)
+    {
+        $this->assertCanChange($request, $quotation, 'edit');
+        abort_if(!in_array($quotation->status, ['draft']), 422, 'Only draft quotations can be edited.');
+
+        $data = $request->validate([
+            'client_name'    => 'sometimes|string|max:200',
+            'client_contact' => 'nullable|string|max:200',
+            'client_email'   => 'nullable|email|max:200',
+            'client_tin'     => ['sometimes', 'required', ...Tin::RULE],
+            'valid_until'    => 'nullable|date',
+            'currency'       => 'nullable|string|max:10',
+            'discount_amount'=> 'nullable|integer|min:0',
+            'tax_amount'     => 'nullable|integer|min:0',
+            'notes'          => 'nullable|string',
+            'terms'          => 'nullable|string',
+            ...DocumentTerms::RULES,
+        ], ['client_tin.regex' => Tin::MESSAGE, 'client_tin.required' => 'Client TIN is required.']);
+
+        if (isset($data['client_tin'])) {
+            $data['client_tin'] = Tin::normalize($data['client_tin']);
+        }
+        if (array_key_exists('term_items', $data)) {
+            $data['term_items'] = DocumentTerms::normalize($data['term_items']);
+        }
+        $quotation->update($data);
+
+        return new QuotationResource($quotation->fresh(['createdBy', 'items']));
+    }
+
+    public function destroy(Request $request, Quotation $quotation)
+    {
+        $this->assertCanChange($request, $quotation, 'delete');
+        abort_if(!in_array($quotation->status, ['draft', 'rejected']), 422, 'Only draft or rejected quotations can be deleted.');
+        $quotation->delete();
+        return response()->noContent();
+    }
+
+    // Mark as sent to client
+    public function send(Request $request, Quotation $quotation)
+    {
+        abort_if(! $request->user()->hasSalesIssueQuotationAuthority(), 403, 'You are not authorised to send quotations.');
+        abort_if($quotation->status !== 'draft', 422, 'Only draft quotations can be sent.');
+        abort_if($quotation->approval_status === 'pending', 422,
+            'This quotation needs manager approval before it can be sent: ' . $quotation->approval_reason);
+        abort_if($quotation->approval_status === 'rejected', 422,
+            'This quotation was rejected and cannot be sent: ' . $quotation->rejection_reason);
+        $quotation->update(['status' => 'sent', 'sent_at' => now()]);
+        return new QuotationResource($quotation->fresh(['createdBy', 'items']));
+    }
+
+    // Manager approves a discount/value that exceeded the creator's limits
+    public function approve(Request $request, Quotation $quotation)
+    {
+        abort_if(! $request->user()->hasSalesApprovalAuthority(), 403, 'You are not authorised to approve quotations.');
+        abort_if($quotation->approval_status !== 'pending', 422, 'This quotation is not pending approval.');
+
+        $quotation->update([
+            'approval_status' => 'approved',
+            'approved_by'     => $request->user()->id,
+            'approved_at'     => now(),
+        ]);
+
+        return new QuotationResource($quotation->fresh(['createdBy', 'approvedBy', 'items']));
+    }
+
+    // Manager rejects — the quotation cannot be sent until re-submitted differently
+    public function rejectApproval(Request $request, Quotation $quotation)
+    {
+        abort_if(! $request->user()->hasSalesApprovalAuthority(), 403, 'You are not authorised to reject quotations.');
+        abort_if($quotation->approval_status !== 'pending', 422, 'This quotation is not pending approval.');
+
+        $data = $request->validate(['rejection_reason' => 'nullable|string']);
+
+        $quotation->update([
+            'approval_status'  => 'rejected',
+            'approved_by'      => $request->user()->id,
+            'approved_at'      => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        return new QuotationResource($quotation->fresh(['createdBy', 'approvedBy', 'items']));
+    }
+
+    // Client accepted the quotation
+    public function accept(Quotation $quotation)
+    {
+        abort_if($quotation->status !== 'sent', 422, 'Only sent quotations can be accepted.');
+        $quotation->update(['status' => 'accepted', 'accepted_at' => now()]);
+        return new QuotationResource($quotation->fresh(['createdBy', 'items']));
+    }
+
+    // Client rejected the quotation
+    public function reject(Quotation $quotation)
+    {
+        abort_if(!in_array($quotation->status, ['sent', 'accepted']), 422, 'Quotation cannot be rejected in its current status.');
+        $quotation->update(['status' => 'rejected']);
+        return new QuotationResource($quotation->fresh(['createdBy', 'items']));
+    }
+
+    // Convert accepted quotation to Sales Order
+    public function convert(Request $request, Quotation $quotation, DocumentNumberService $documentNumbers)
+    {
+        abort_if(! $request->user()->hasSalesEditAuthority(), 403, 'You are not authorised to edit quotations.');
+        abort_if($quotation->status !== 'accepted', 422, 'Only accepted quotations can be converted to a sales order.');
+
+        $data = $request->validate([
+            'location_id'             => 'required|exists:locations,id',
+            'expected_delivery_date' => 'nullable|date',
+            'notes'                  => 'nullable|string',
+        ]);
+
+        return DB::transaction(function () use ($quotation, $data, $request, $documentNumbers) {
+            $quotation->load(['items', 'lead']);
+
+            $orderNumber = $documentNumbers->next('sales_order');
+
+            $order = SalesOrder::create([
+                'order_number'           => $orderNumber,
+                'quotation_id'           => $quotation->id,
+                'client_name'            => $quotation->client_name,
+                'client_contact'         => $quotation->client_contact,
+                'hospital_id'            => $quotation->lead?->hospital_id,
+                'location_id'            => $data['location_id'],
+                'status'                 => 'pending',
+                'currency'               => $quotation->currency,
+                'subtotal'               => $quotation->subtotal,
+                'discount_amount'        => $quotation->discount_amount,
+                'tax_amount'             => $quotation->tax_amount,
+                'total_amount'           => $quotation->total_amount,
+                'notes'                  => $data['notes'] ?? $quotation->notes,
+                'expected_delivery_date' => $data['expected_delivery_date'] ?? null,
+                'created_by'             => $request->user()->id,
+            ]);
+
+            foreach ($quotation->items as $qi) {
+                $order->items()->create([
+                    'inventory_item_id' => $qi->inventory_item_id,
+                    'description'       => $qi->description,
+                    'unit_of_measure'   => $qi->unit_of_measure,
+                    'quantity_ordered'  => $qi->quantity,
+                    'quantity_delivered'=> 0,
+                    'unit_price'        => $qi->unit_price,
+                    // The line's percentage + TSh discount, as an amount.
+                    'discount'          => max(0, (int) round($qi->quantity * $qi->unit_price) - (int) $qi->total_price),
+                    'total_price'       => $qi->total_price,
+                ]);
+            }
+
+            $quotation->update(['status' => 'converted']);
+
+            return (new SalesOrderResource($order->load(['createdBy', 'items.inventoryItem', 'quotation'])))
+                ->response()->setStatusCode(201);
+        });
+    }
+}

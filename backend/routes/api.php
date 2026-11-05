@@ -1,0 +1,729 @@
+<?php
+
+use App\Http\Controllers\Api\AccountingController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BankReconciliationController;
+use App\Http\Controllers\Api\BatchLotController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\AdminOverviewController;
+use App\Http\Controllers\Api\CtoOverviewController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DeliveryJobController;
+use App\Http\Controllers\Api\DocumentSequenceController;
+use App\Http\Controllers\Api\ReceiptController;
+use App\Http\Controllers\Api\VendorController;
+use App\Http\Controllers\Api\VendorFeeController;
+use App\Http\Controllers\Api\NotificationTemplateController;
+use App\Http\Controllers\Api\StoreDashboardController;
+use App\Http\Controllers\Api\UnifiedDashboardController;
+use App\Http\Controllers\Api\EmailAccountController;
+use App\Http\Controllers\Api\EmailController;
+use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\FinanceReportController;
+use App\Http\Controllers\Api\FinancialStatementsController;
+use App\Http\Controllers\Api\TenderController;
+use App\Http\Controllers\Api\NestTenderController;
+use App\Http\Controllers\Api\ShipmentController;
+use App\Http\Controllers\Api\DeviceRegistrationController;
+use App\Http\Controllers\Api\FlowController;
+use App\Http\Controllers\Api\HospitalController;
+use App\Http\Controllers\Api\InventoryController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\CreditNoteController;
+use App\Http\Controllers\Api\LicenseController;
+use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\MachineController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PurchaseOrderController;
+use App\Http\Controllers\Api\LetterController;
+use App\Http\Controllers\Api\PurchaseRequisitionController;
+use App\Http\Controllers\Api\PurchaseReturnController;
+use App\Http\Controllers\Api\QuotationController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\RevenueController;
+use App\Http\Controllers\Api\SalesActivityController;
+use App\Http\Controllers\Api\SalesLeadController;
+use App\Http\Controllers\Api\SalesOverviewController;
+use App\Http\Controllers\Api\SalesTargetController;
+use App\Http\Controllers\Api\PerformanceController;
+use App\Http\Controllers\Api\ContributionController;
+use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\TaxRateController;
+use App\Http\Controllers\Api\SalesOrderController;
+use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\SerialNumberController;
+use App\Http\Controllers\Api\SalesTeamController;
+use App\Http\Controllers\Api\ServiceTicketController;
+use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\StockLevelController;
+use App\Http\Controllers\Api\StockMovementController;
+use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\LateArrivalController;
+use App\Http\Controllers\Api\StockOutRequestController;
+use App\Http\Controllers\Api\MyReportsController;
+use App\Http\Controllers\Api\PerDiemController;
+use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\LeaveTypeController;
+use App\Http\Controllers\Api\LeaveBalanceController;
+use App\Http\Controllers\Api\PublicHolidayController;
+use App\Http\Controllers\Api\HrSettingController;
+use App\Http\Controllers\Api\PositionController;
+use App\Http\Controllers\Api\ContractController;
+use App\Http\Controllers\Api\DisciplinaryCaseController;
+use App\Http\Controllers\Api\PositionChangeController;
+use App\Http\Controllers\Api\HrReportController;
+use App\Http\Controllers\Api\VacancyController;
+use App\Http\Controllers\Api\PayrollController;
+use App\Http\Controllers\Api\SalaryAdjustmentController;
+use App\Http\Controllers\Api\DelegationController;
+use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\ApplicantController;
+use App\Http\Controllers\Api\ApplicationController;
+use App\Http\Controllers\Api\InterviewController;
+use App\Http\Controllers\Api\PartCannibalizationController;
+use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\MeetingController;
+use App\Http\Controllers\Api\TicketAttachmentController;
+use App\Http\Controllers\Api\VendorBillController;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('v1')->group(function () {
+
+    // Auth
+    Route::post('auth/login', [AuthController::class, 'login']);
+
+    // License (no auth — must work pre-login for trial gate)
+    Route::get('license/check',    [LicenseController::class, 'check']);
+    Route::post('license/request', [LicenseController::class, 'store']);
+
+    // Public document sharing — time-limited signed links, no login required
+    // (so a hospital contact can open a shared quotation/invoice PDF directly).
+    Route::get('public/quotations/{quotation}/pdf', [QuotationController::class, 'pdf'])
+        ->name('quotations.pdf-public')->middleware('signed');
+    Route::get('public/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])
+        ->name('invoices.pdf-public')->middleware('signed');
+    Route::get('public/hr-reports/pdf', [HrReportController::class, 'exportPdf'])
+        ->name('hr-reports.pdf-public')->middleware('signed');
+    Route::get('public/staff/{user}/payslip/{payrollRun}', [PayrollController::class, 'payslip'])
+        ->name('payslips.pdf-public')->middleware('signed');
+
+    // Flow-diagram research/sampling tool — a link handed directly to staff
+    // to correct their own department's process flow. Deliberately public,
+    // no `signed` middleware: not a single time-limited record, an ongoing
+    // editable resource anyone with the link can revisit and update.
+    Route::get('flows', [FlowController::class, 'index'])->name('flows.index');
+    Route::get('flows/{key}', [FlowController::class, 'show'])->name('flows.show');
+    Route::put('flows/{key}', [FlowController::class, 'update'])->name('flows.update');
+    Route::get('flows/{key}/history', [FlowController::class, 'history'])->name('flows.history');
+
+    Route::middleware('auth:sanctum')->group(function () {
+
+        Route::post('auth/logout', [AuthController::class, 'logout']);
+        Route::get('auth/me', [AuthController::class, 'me']);
+        Route::put('auth/profile', [AuthController::class, 'updateProfile']);
+        Route::get('auth/profile/export', [AuthController::class, 'exportProfile']);
+        Route::post('auth/change-password', [AuthController::class, 'changePassword']);
+        Route::put('auth/payment-profile', [AuthController::class, 'updatePaymentProfile']);
+        Route::post('auth/avatar', [AuthController::class, 'updateAvatar']);
+        Route::delete('auth/avatar', [AuthController::class, 'deleteAvatar']);
+
+        // Global search — cross-entity, permission-filtered
+        Route::get('search', [SearchController::class, 'index']);
+
+        // Dashboard
+        Route::get('dashboard', [DashboardController::class, 'index']);
+        Route::get('dashboard/inventory', [DashboardController::class, 'inventory']);
+        Route::get('dashboard/sales', [DashboardController::class, 'sales']);
+        Route::get('dashboard/sales/overview', [SalesOverviewController::class, 'index']);
+        Route::get('dashboard/unified', [UnifiedDashboardController::class, 'index']);
+        Route::get('dashboard/store', [StoreDashboardController::class, 'index']);
+        Route::get('dashboard/admin-overview', [AdminOverviewController::class, 'index']);
+        Route::get('dashboard/cto-overview', [CtoOverviewController::class, 'index']);
+
+        // The Director's "Approve now" past every stage still open.
+        Route::post('approvals/fast-track', [\App\Http\Controllers\Api\FastTrackController::class, 'store']);
+
+        // Accounting — Chart of Accounts + ledger journal
+        Route::get('accounting/accounts', [AccountingController::class, 'accounts']);
+        Route::post('accounting/accounts', [AccountingController::class, 'storeAccount']);
+        Route::put('accounting/accounts/{account}', [AccountingController::class, 'updateAccount']);
+        Route::delete('accounting/accounts/{account}', [AccountingController::class, 'destroyAccount']);
+        Route::get('accounting/categories', [AccountingController::class, 'categories']);
+        Route::get('accounting/journal',  [AccountingController::class, 'journal']);
+        Route::get('accounting/summary',  [AccountingController::class, 'summary']);
+        Route::post('accounting/close-period', [AccountingController::class, 'closePeriod']);
+
+        // Expenses
+        Route::get('expense-categories', [ExpenseController::class, 'categories']);
+        Route::post('expense-categories', [ExpenseController::class, 'storeCategory']);
+        Route::put('expense-categories/{expenseCategory}', [ExpenseController::class, 'updateCategory']);
+        Route::delete('expense-categories/{expenseCategory}', [ExpenseController::class, 'destroyCategory']);
+        Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve']);
+        Route::post('expenses/{expense}/escalate', [ExpenseController::class, 'escalate']);
+        Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject']);
+        Route::post('expenses/{expense}/initiate-payment', [ExpenseController::class, 'initiatePayment']);
+        Route::post('expenses/{expense}/mark-paid', [ExpenseController::class, 'markPaid']);
+        Route::post('expenses/{expense}/stop-recurring', [ExpenseController::class, 'stopRecurring']);
+        Route::apiResource('expenses', ExpenseController::class);
+
+        // Section 16: transit/delivery vendor fees
+        Route::apiResource('vendors', VendorController::class)->only(['index', 'show', 'store', 'update']);
+        Route::post('delivery-jobs/{deliveryJob}/delivery-note', [DeliveryJobController::class, 'uploadDeliveryNote']);
+        Route::apiResource('delivery-jobs', DeliveryJobController::class)->only(['index', 'show', 'store']);
+        Route::post('vendor-fees/{vendorFee}/receipts', [ReceiptController::class, 'store']);
+        Route::post('vendor-fees/{vendorFee}/receipts/{receipt}/verify', [ReceiptController::class, 'verify']);
+        Route::delete('vendor-fees/{vendorFee}/receipts/{receipt}', [ReceiptController::class, 'destroy']);
+        Route::get('vendor-fees/{vendorFee}/receipts/{receipt}/file', [ReceiptController::class, 'file']);
+        // POST (multipart, so a replacement file can come with it).
+        Route::post('vendor-fees/{vendorFee}/receipts/{receipt}', [ReceiptController::class, 'update']);
+        Route::post('vendor-fees/{vendorFee}/manager-approve', [VendorFeeController::class, 'managerApprove']);
+        Route::post('vendor-fees/{vendorFee}/manager-reject', [VendorFeeController::class, 'managerReject']);
+        Route::post('vendor-fees/{vendorFee}/submit-for-payment', [VendorFeeController::class, 'submitForPayment']);
+        Route::post('vendor-fees/{vendorFee}/approve', [VendorFeeController::class, 'approve']);
+        Route::post('vendor-fees/{vendorFee}/reject', [VendorFeeController::class, 'reject']);
+        Route::apiResource('vendor-fees', VendorFeeController::class)->only(['index', 'show', 'store']);
+
+        Route::get('settings', [SettingController::class, 'index']);
+        Route::put('settings/{key}', [SettingController::class, 'update']);
+
+        // Dynamic access control (Phase 1) — see plan doc "Dynamic access
+        // control — Phase 1: permission layer"
+        Route::get('me/permissions',        [PermissionController::class, 'me']);
+        Route::get('permission-overrides',  [PermissionController::class, 'allOverrides']);
+        Route::get('permissions',           [PermissionController::class, 'permissions']);
+        Route::get('roles',                 [PermissionController::class, 'roles']);
+        Route::post('roles',                [PermissionController::class, 'storeRole']);
+        Route::put('roles/{role}',          [PermissionController::class, 'updateRole']);
+        Route::delete('roles/{role}',       [PermissionController::class, 'destroyRole']);
+        Route::put('roles/{role}/permissions', [PermissionController::class, 'syncRolePermissions']);
+        Route::get('users/{user}/permissions',            [PermissionController::class, 'userPermissions']);
+        Route::get('users/{user}/permission-overrides',   [PermissionController::class, 'userOverrides']);
+        Route::post('users/{user}/permission-overrides',  [PermissionController::class, 'storeUserOverride']);
+        Route::delete('users/{user}/permission-overrides/{override}', [PermissionController::class, 'destroyUserOverride']);
+
+        // Vendor Bills (Accounts Payable)
+        Route::post('vendor-bills/{vendorBill}/approve',  [VendorBillController::class, 'approve']);
+        Route::post('vendor-bills/{vendorBill}/payments', [VendorBillController::class, 'recordPayment']);
+        Route::post('vendor-bills/{vendorBill}/cancel',   [VendorBillController::class, 'cancel']);
+
+        // Creditors Ledger + payments to creditors (initiate → Director)
+        Route::get('creditors',                                   [\App\Http\Controllers\Api\CreditorController::class, 'index']);
+        Route::get('creditors/xlsx',                              [\App\Http\Controllers\Api\CreditorController::class, 'allXlsx']);
+        Route::get('creditors/{type}/{id}/statement',             [\App\Http\Controllers\Api\CreditorController::class, 'statement'])->whereIn('type', ['supplier', 'vendor'])->whereNumber('id');
+        Route::get('creditors/{type}/{id}/statement/xlsx',        [\App\Http\Controllers\Api\CreditorController::class, 'statementXlsx'])->whereIn('type', ['supplier', 'vendor'])->whereNumber('id');
+        Route::get('creditors/{type}/{id}/statement/pdf',         [\App\Http\Controllers\Api\CreditorController::class, 'statementPdf'])->whereIn('type', ['supplier', 'vendor'])->whereNumber('id');
+        Route::put('creditors/{type}/{id}/opening-balance',       [\App\Http\Controllers\Api\CreditorController::class, 'saveOpening'])->whereIn('type', ['supplier', 'vendor'])->whereNumber('id');
+        Route::delete('creditors/{type}/{id}/opening-balance',    [\App\Http\Controllers\Api\CreditorController::class, 'deleteOpening'])->whereIn('type', ['supplier', 'vendor'])->whereNumber('id');
+        Route::get('connections/{type}/{id}',                    [\App\Http\Controllers\Api\ConnectionsController::class, 'show'])->whereNumber('id');
+        Route::get('supplier-payments',                           [\App\Http\Controllers\Api\SupplierPaymentController::class, 'index']);
+        Route::get('supplier-payments/accounts',                  [\App\Http\Controllers\Api\SupplierPaymentController::class, 'accounts']);
+        Route::post('supplier-payments',                          [\App\Http\Controllers\Api\SupplierPaymentController::class, 'store']);
+        Route::post('supplier-payments/{supplierPayment}/approve', [\App\Http\Controllers\Api\SupplierPaymentController::class, 'approve']);
+        Route::post('supplier-payments/{supplierPayment}/reject',  [\App\Http\Controllers\Api\SupplierPaymentController::class, 'reject']);
+        Route::apiResource('vendor-bills', VendorBillController::class);
+
+        // Delegated approval authority (Director → temporary delegate)
+        Route::get('delegations',                    [DelegationController::class, 'index']);
+        Route::post('delegations',                   [DelegationController::class, 'store']);
+        Route::post('delegations/{delegation}/revoke', [DelegationController::class, 'revoke']);
+
+        // Finance reports
+        Route::get('finance-reports/vat',           [FinanceReportController::class, 'vat']);
+        Route::get('finance-reports/profit-loss',   [FinanceReportController::class, 'profitLoss']);
+        Route::get('finance-reports/trial-balance', [FinanceReportController::class, 'trialBalance']);
+        Route::get('finance-reports/balance-sheet', [FinanceReportController::class, 'balanceSheet']);
+        Route::get('finance-reports/ar-aging',      [FinanceReportController::class, 'arAging']);
+        Route::get('finance-reports/ap-aging',      [FinanceReportController::class, 'apAging']);
+        Route::get('finance-reports/stock-valuation', [FinanceReportController::class, 'stockValuation']);
+        Route::get('finance-reports/cash-flow',     [FinanceReportController::class, 'cashFlow']);
+        Route::get('finance-reports/monthly-trend', [FinanceReportController::class, 'monthlyTrend']);
+        Route::get('finance-reports/financial-statements/profile', [FinancialStatementsController::class, 'profile']);
+        Route::put('finance-reports/financial-statements/profile', [FinancialStatementsController::class, 'updateProfile']);
+        Route::get('finance-reports/financial-statements/pdf',     [FinancialStatementsController::class, 'pdf']);
+
+        // Section 19: Tenders & Contracts, TMDA device registrations
+        Route::get('tenders',                                   [TenderController::class, 'index']);
+        Route::post('tenders',                                  [TenderController::class, 'store']);
+        Route::get('tenders/{tender}',                          [TenderController::class, 'show'])->whereNumber('tender');
+        Route::put('tenders/{tender}',                          [TenderController::class, 'update'])->whereNumber('tender');
+        Route::post('tenders/{tender}/status',                  [TenderController::class, 'updateStatus'])->whereNumber('tender');
+        Route::post('tenders/{tender}/documents/{type}/generate', [TenderController::class, 'generate'])->whereNumber('tender');
+        Route::post('tenders/{tender}/documents/{type}/executed', [TenderController::class, 'uploadExecuted'])->whereNumber('tender');
+        Route::get('tenders/{tender}/documents/{type}/{which}', [TenderController::class, 'download'])->whereNumber('tender')->whereIn('which', ['draft', 'executed']);
+        Route::get('procuring-entities',                        [TenderController::class, 'entities']);
+        Route::post('procuring-entities',                       [TenderController::class, 'storeEntity']);
+        Route::put('procuring-entities/{entity}',               [TenderController::class, 'updateEntity']);
+        Route::get('board-resolutions',                         [TenderController::class, 'resolutions']);
+        Route::post('board-resolutions',                        [TenderController::class, 'storeResolution']);
+        Route::get('company-profile',                           [TenderController::class, 'companyProfile']);
+        Route::put('company-profile',                           [TenderController::class, 'updateCompanyProfile']);
+        // NeST tender tracker (nest.go.tz feed, relevance, triage → Start bid)
+        Route::get('nest/dashboard',                            [NestTenderController::class, 'dashboard']);
+        Route::get('nest/tenders',                              [NestTenderController::class, 'index']);
+        Route::get('nest/tenders/{nestTender}',                 [NestTenderController::class, 'show'])->whereNumber('nestTender');
+        Route::patch('nest/tenders/{nestTender}',               [NestTenderController::class, 'update'])->whereNumber('nestTender');
+        Route::post('nest/tenders/{nestTender}/start-bid',      [NestTenderController::class, 'startBid'])->whereNumber('nestTender');
+        Route::get('nest/tenders/{nestTender}/document',        [NestTenderController::class, 'document'])->whereNumber('nestTender');
+        Route::get('nest/tenders/{nestTender}/documents',       [NestTenderController::class, 'documents'])->whereNumber('nestTender');
+        Route::get('nest/tenders/{nestTender}/documents/{file}', [NestTenderController::class, 'documentFile'])->whereNumber('nestTender')->whereUuid('file');
+        Route::get('nest/procuring-entities',                   [NestTenderController::class, 'entities']);
+        Route::get('nest/procuring-entities/{uuid}/tenders',    [NestTenderController::class, 'entityTenders'])->whereUuid('uuid');
+        Route::get('nest/relevance-rules',                      [NestTenderController::class, 'rules']);
+        Route::post('nest/relevance-rules',                     [NestTenderController::class, 'storeRule']);
+        Route::post('nest/relevance-rules/recompute',           [NestTenderController::class, 'recompute']);
+        Route::put('nest/relevance-rules/{rule}',               [NestTenderController::class, 'updateRule'])->whereNumber('rule');
+        Route::delete('nest/relevance-rules/{rule}',            [NestTenderController::class, 'destroyRule'])->whereNumber('rule');
+        Route::get('nest/settings',                             [NestTenderController::class, 'settings']);
+        Route::put('nest/settings',                             [NestTenderController::class, 'updateSettings']);
+        Route::post('nest/settings/test-login',                 [NestTenderController::class, 'testLogin']);
+        Route::post('nest/sync',                                [NestTenderController::class, 'syncNow']);
+        Route::get('device-registrations',                      [DeviceRegistrationController::class, 'index']);
+        Route::post('device-registrations',                     [DeviceRegistrationController::class, 'store']);
+        Route::get('device-registrations/{device}',             [DeviceRegistrationController::class, 'show']);
+        Route::put('device-registrations/{device}',             [DeviceRegistrationController::class, 'update']);
+        Route::put('device-registrations/{device}/requirements/{no}', [DeviceRegistrationController::class, 'updateRequirement'])->whereNumber('no');
+        Route::post('device-registrations/{device}/files',      [DeviceRegistrationController::class, 'uploadFile']);
+        Route::get('device-registrations/{device}/files/{file}', [DeviceRegistrationController::class, 'downloadFile']);
+        Route::delete('device-registrations/{device}/files/{file}', [DeviceRegistrationController::class, 'deleteFile']);
+        Route::post('device-registrations/{device}/import-letter', [DeviceRegistrationController::class, 'importLetter']);
+        Route::get('device-registrations/{device}/checklist-document', [DeviceRegistrationController::class, 'checklistDocument']);
+
+        // Section 18: import/export shipments (clearing fee = Section 16 vendor fee)
+        Route::get('shipments',                                 [ShipmentController::class, 'index']);
+        Route::post('shipments',                                [ShipmentController::class, 'store']);
+        Route::get('shipments/options',                         [ShipmentController::class, 'options']);
+        Route::get('shipments/settings',                        [ShipmentController::class, 'settings']);
+        Route::put('shipments/settings',                        [ShipmentController::class, 'updateSettings']);
+        Route::get('shipments/{shipment}',                      [ShipmentController::class, 'show'])->whereNumber('shipment');
+        Route::put('shipments/{shipment}',                      [ShipmentController::class, 'update'])->whereNumber('shipment');
+        Route::post('shipments/{shipment}/status',              [ShipmentController::class, 'updateStatus'])->whereNumber('shipment');
+        Route::post('shipments/{shipment}/documents',           [ShipmentController::class, 'uploadDocument'])->whereNumber('shipment');
+        Route::get('shipments/{shipment}/documents/{type}',     [ShipmentController::class, 'downloadDocument'])->whereNumber('shipment');
+        Route::post('shipments/{shipment}/clearing-fee',        [ShipmentController::class, 'linkClearingFee'])->whereNumber('shipment');
+        Route::put('shipments/{shipment}/machines',             [ShipmentController::class, 'syncMachines'])->whereNumber('shipment');
+        Route::post('departments',                              [ShipmentController::class, 'storeDepartment']);
+        Route::put('departments/{department}',                  [ShipmentController::class, 'updateDepartment']);
+
+        // Bank Reconciliation
+        Route::post('bank-reconciliations/{bankReconciliation}/import-statement', [BankReconciliationController::class, 'importStatement']);
+        Route::post('bank-reconciliations/{bankReconciliation}/clear-statement',  [BankReconciliationController::class, 'clearStatement']);
+        Route::post('bank-reconciliations/{bankReconciliation}/auto-match',       [BankReconciliationController::class, 'autoMatch']);
+        Route::post('bank-reconciliations/{bankReconciliation}/complete',         [BankReconciliationController::class, 'complete']);
+        Route::post('bank-reconciliations/{bankReconciliation}/reopen',           [BankReconciliationController::class, 'reopen']);
+        Route::patch('bank-reconciliations/{bankReconciliation}/lines/{line}/match',   [BankReconciliationController::class, 'matchLine']);
+        Route::patch('bank-reconciliations/{bankReconciliation}/lines/{line}/unmatch', [BankReconciliationController::class, 'unmatchLine']);
+        Route::apiResource('bank-reconciliations', BankReconciliationController::class);
+
+        // ── Semi-static read endpoints — clients may cache for 60 s ──────────
+        // CDN NOTE (Task 14): In production, put Cloudflare (free tier) in front
+        // of the production domain. It will honour these Cache-Control headers and
+        // serve cached responses from an edge node in Nairobi/Johannesburg,
+        // cutting round-trip latency for East-Africa clients from ~120 ms to ~15 ms.
+        Route::middleware('cache.headers.api:60')->group(function () {
+            Route::get('machines/map', [MachineController::class, 'map']);
+            Route::get('revenue/summary', [RevenueController::class, 'summary']);
+            Route::get('revenue/by-hospital', [RevenueController::class, 'byHospital']);
+            Route::get('reports', [ReportController::class, 'index']);
+        });
+
+        // machines/in-stock must stay registered before the apiResource below
+        // (same reasoning as machines/map) — otherwise GET machines/{machine}
+        // would swallow it as if "in-stock" were an id.
+        Route::get('machines/in-stock', [MachineController::class, 'inStock']);
+        Route::post('machines/receive', [MachineController::class, 'receive']);
+
+        // Machines (map/in-stock/receive are registered above)
+        Route::apiResource('machines', MachineController::class);
+        Route::post('machines/{machine}/sign-off', [MachineController::class, 'signOff']);
+        Route::post('machines/{machine}/allocate', [MachineController::class, 'allocate']);
+        Route::get('machines/{machine}/costs', [MachineController::class, 'costs']);
+
+        // Hospitals
+        Route::get('hospitals/groups', [HospitalController::class, 'groups']);
+        Route::apiResource('hospitals', HospitalController::class);
+
+        // Service Tickets
+        Route::post('tickets/{ticket}/resolve', [ServiceTicketController::class, 'resolve']);
+        Route::post('tickets/{ticket}/override-billing', [ServiceTicketController::class, 'overrideBilling']);
+        Route::post('tickets/{ticket}/acknowledge', [ServiceTicketController::class, 'acknowledge']);
+        Route::post('tickets/{ticket}/advance-stage', [ServiceTicketController::class, 'advanceStage']);
+        Route::post('tickets/{ticket}/parts', [ServiceTicketController::class, 'addPart']);
+        Route::post('tickets/{ticket}/checklist', [ServiceTicketController::class, 'addChecklistItem']);
+        Route::post('tickets/{ticket}/checklist/{item}', [ServiceTicketController::class, 'toggleChecklist']);
+        // Section 6: multi-machine tickets, generalized to every ticket type.
+        Route::post('tickets/{ticket}/machines', [ServiceTicketController::class, 'addMachine']);
+        Route::delete('tickets/{ticket}/machines/{machine}', [ServiceTicketController::class, 'removeMachine']);
+        Route::post('tickets/{ticket}/machines/{machine}/complete', [ServiceTicketController::class, 'completeMachine']);
+        Route::get('tickets/{ticket}/attachments', [TicketAttachmentController::class, 'index']);
+        Route::post('tickets/{ticket}/attachments', [TicketAttachmentController::class, 'store']);
+        Route::delete('tickets/{ticket}/attachments/{attachment}', [TicketAttachmentController::class, 'destroy']);
+        Route::apiResource('tickets', ServiceTicketController::class);
+
+        // Section 7: technician self-service — own service/installation reports.
+        Route::get('my/service-reports', [MyReportsController::class, 'serviceReports']);
+
+        // Invoices & Revenue
+        Route::get('document-terms',              [InvoiceController::class, 'termDefaults']);
+        Route::post('invoices/export',            [InvoiceController::class, 'export']);
+        Route::post('invoices/{invoice}/send',    [InvoiceController::class, 'send']);
+        Route::post('invoices/{invoice}/cancel',  [InvoiceController::class, 'cancel']);
+        Route::post('invoices/{invoice}/payments',[InvoiceController::class, 'recordPayment']);
+        Route::get('invoices/{invoice}/pdf',        [InvoiceController::class, 'pdf']);
+        Route::get('invoices/{invoice}/delivery-note', [InvoiceController::class, 'deliveryNote']);
+        Route::put('invoices/{invoice}/shipping',   [InvoiceController::class, 'shipping']);
+        Route::post('invoices/{invoice}/notify',    [InvoiceController::class, 'notify']);
+        Route::post('invoices/{invoice}/share-link',[InvoiceController::class, 'shareLink']);
+        Route::get('invoices/{invoice}/credit-notes',  [CreditNoteController::class, 'index']);
+        Route::post('invoices/{invoice}/credit-notes', [CreditNoteController::class, 'store']);
+        Route::post('credit-notes/{creditNote}/approve', [CreditNoteController::class, 'approve']);
+        Route::post('credit-notes/{creditNote}/apply',   [CreditNoteController::class, 'apply']);
+        Route::apiResource('invoices', InvoiceController::class);
+        // Credit sales / hire purchase tracking (Clickhuduma-style).
+        Route::get('receivables',            [\App\Http\Controllers\Api\ReceivablesController::class, 'index']);
+        Route::get('receivables/statement',  [\App\Http\Controllers\Api\ReceivablesController::class, 'statement']);
+        Route::get('receivables/statement/pdf', [\App\Http\Controllers\Api\ReceivablesController::class, 'statementPdf']);
+        Route::get('receivables/statement/xlsx', [\App\Http\Controllers\Api\ReceivablesController::class, 'statementXlsx']);
+        Route::post('receivables/pay',       [\App\Http\Controllers\Api\ReceivablesController::class, 'pay']);
+
+        // Sales Leads
+        Route::patch('leads/{lead}/stage', [SalesLeadController::class, 'updateStage']);
+        Route::apiResource('leads', SalesLeadController::class);
+
+        // Sales targets (manager-set, per rep per month) + rep activity log
+        Route::get('sales-targets', [SalesTargetController::class, 'index']);
+        Route::put('sales-targets', [SalesTargetController::class, 'update']);
+        Route::get('sales-activities', [SalesActivityController::class, 'index']);
+        Route::post('sales-activities', [SalesActivityController::class, 'store']);
+        Route::delete('sales-activities/{activity}', [SalesActivityController::class, 'destroy']);
+
+        // Performance — universal "my performance" + manager-only team view
+        Route::get('performance/mine', [PerformanceController::class, 'mine']);
+        Route::get('performance/team', [PerformanceController::class, 'team']);
+        // Staff contributions — who did what, for the Director's bonus decisions.
+        Route::get('contributions', [ContributionController::class, 'index']);
+        Route::get('contributions/{user}/{metric}', [ContributionController::class, 'show']);
+
+        // Activity log — admin-tier only, company-wide change history
+        Route::get('activity-log', [ActivityLogController::class, 'index']);
+
+        // Tax rates — named percentages for the tax_rate fields on
+        // Invoice/Expense/VendorBill (read: anyone; manage: admin-tier)
+        Route::get('tax-rates',          [TaxRateController::class, 'index']);
+        Route::post('tax-rates',         [TaxRateController::class, 'store']);
+        Route::put('tax-rates/{taxRate}', [TaxRateController::class, 'update']);
+        Route::delete('tax-rates/{taxRate}', [TaxRateController::class, 'destroy']);
+
+        // Document numbering — prefix/digits/next-number per document type
+        // (admin-tier only, both read and write: unlike tax rates this isn't
+        // needed by ordinary create-screens, it's a numbering-format setting)
+        Route::get('document-sequences', [DocumentSequenceController::class, 'index']);
+        Route::put('document-sequences/{documentSequence}', [DocumentSequenceController::class, 'update']);
+
+        // Notification wording — admin-tier only, both read and write
+        Route::get('notification-templates', [NotificationTemplateController::class, 'index']);
+        Route::put('notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'update']);
+
+        // Quotations
+        Route::post('quotations/{quotation}/send',    [QuotationController::class, 'send']);
+        Route::post('quotations/{quotation}/accept',  [QuotationController::class, 'accept']);
+        Route::post('quotations/{quotation}/reject',  [QuotationController::class, 'reject']);
+        Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convert']);
+        Route::post('quotations/{quotation}/approve',        [QuotationController::class, 'approve']);
+        Route::post('quotations/{quotation}/reject-approval', [QuotationController::class, 'rejectApproval']);
+        Route::get('quotations/{quotation}/pdf',        [QuotationController::class, 'pdf']);
+        Route::post('quotations/{quotation}/share-link',[QuotationController::class, 'shareLink']);
+        Route::apiResource('quotations', QuotationController::class);
+
+        // Sales Orders
+        Route::post('sales-orders/{salesOrder}/confirm', [SalesOrderController::class, 'confirm']);
+        Route::post('sales-orders/{salesOrder}/deliver', [SalesOrderController::class, 'deliver']);
+        Route::post('sales-orders/{salesOrder}/cancel',  [SalesOrderController::class, 'cancel']);
+        Route::post('sales-orders/{salesOrder}/invoice', [SalesOrderController::class, 'createInvoice']);
+        Route::post('sales-orders/{salesOrder}/approve',        [SalesOrderController::class, 'approve']);
+        Route::post('sales-orders/{salesOrder}/reject-approval', [SalesOrderController::class, 'rejectApproval']);
+        Route::apiResource('sales-orders', SalesOrderController::class)->only(['index', 'store', 'show']);
+
+        // Locations
+        Route::apiResource('locations', LocationController::class);
+
+        // Categories
+        Route::apiResource('categories', CategoryController::class);
+
+        // Inventory
+        Route::patch('inventory/{inventoryItem}/adjust', [InventoryController::class, 'adjust']);
+        Route::get('inventory/{inventoryItem}/history', [InventoryController::class, 'history']);
+        Route::get('inventory/{inventoryItem}/movements',  [StockMovementController::class, 'index']);
+        Route::get('inventory/{inventoryItem}/batches',    [BatchLotController::class, 'index']);
+        Route::post('inventory/{inventoryItem}/batches',   [BatchLotController::class, 'store']);
+        Route::put('inventory/{inventoryItem}/batches/{batchLot}',    [BatchLotController::class, 'update']);
+        Route::delete('inventory/{inventoryItem}/batches/{batchLot}', [BatchLotController::class, 'destroy']);
+        Route::get('inventory/{inventoryItem}/serials',    [SerialNumberController::class, 'index']);
+        Route::post('inventory/{inventoryItem}/serials',   [SerialNumberController::class, 'store']);
+        Route::put('inventory/{inventoryItem}/serials/{serialNumber}',    [SerialNumberController::class, 'update']);
+        Route::delete('inventory/{inventoryItem}/serials/{serialNumber}', [SerialNumberController::class, 'destroy']);
+        Route::post('inventory/{inventoryItem}/images',    [InventoryController::class, 'uploadImage']);
+        Route::delete('inventory/{inventoryItem}/images/{image}', [InventoryController::class, 'deleteImage']);
+        Route::post('inventory/{inventoryItem}/documents', [InventoryController::class, 'uploadDocument']);
+        Route::delete('inventory/{inventoryItem}/documents/{document}', [InventoryController::class, 'deleteDocument']);
+        Route::post('inventory/quick-create', [InventoryController::class, 'quickCreate']);
+        Route::get('inventory-lots', [BatchLotController::class, 'open']);
+        Route::apiResource('inventory', InventoryController::class);
+
+        // Stock Movements (global — filterable by item)
+        Route::get('stock-movements',  [StockMovementController::class, 'index']);
+        Route::post('stock-movements', [StockMovementController::class, 'store']);
+
+        // Stock Levels (global — flat, filterable list across items x locations)
+        Route::get('stock-levels', [StockLevelController::class, 'index']);
+
+        // Suppliers
+        Route::post('suppliers/{supplier}/items',                  [SupplierController::class, 'addItem']);
+        Route::delete('suppliers/{supplier}/items/{inventoryItem}', [SupplierController::class, 'removeItem']);
+        Route::apiResource('suppliers', SupplierController::class);
+
+        // Purchase Requisitions
+        Route::post('requisitions/{purchaseRequisition}/submit',  [PurchaseRequisitionController::class, 'submit']);
+        Route::post('requisitions/{purchaseRequisition}/approve', [PurchaseRequisitionController::class, 'approve']);
+        Route::post('requisitions/{purchaseRequisition}/reject',  [PurchaseRequisitionController::class, 'reject']);
+        Route::apiResource('requisitions', PurchaseRequisitionController::class);
+
+        // Purchase Orders
+        Route::post('purchase-orders/{purchaseOrder}/submit-for-approval',     [PurchaseOrderController::class, 'submitForApproval']);
+        Route::post('purchase-orders/{purchaseOrder}/approve-sales-manager',   [PurchaseOrderController::class, 'approveSalesManager']);
+        Route::post('purchase-orders/{purchaseOrder}/reject-sales-manager',    [PurchaseOrderController::class, 'rejectSalesManager']);
+        Route::post('purchase-orders/{purchaseOrder}/approve-director-review', [PurchaseOrderController::class, 'approveDirectorReview']);
+        Route::post('purchase-orders/{purchaseOrder}/reject-director-review',  [PurchaseOrderController::class, 'rejectDirectorReview']);
+        Route::post('purchase-orders/{purchaseOrder}/initiate-payment',        [PurchaseOrderController::class, 'initiatePayment']);
+        Route::post('purchase-orders/{purchaseOrder}/approve-director-final',  [PurchaseOrderController::class, 'approveDirectorFinal']);
+        Route::post('purchase-orders/{purchaseOrder}/reject-director-final',   [PurchaseOrderController::class, 'rejectDirectorFinal']);
+        Route::post('purchase-orders/{purchaseOrder}/send',    [PurchaseOrderController::class, 'send']);
+        Route::post('purchase-orders/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive']);
+        Route::post('purchase-orders/{purchaseOrder}/cancel',  [PurchaseOrderController::class, 'cancel']);
+        Route::get('purchase-orders/{purchaseOrder}/pdf',      [PurchaseOrderController::class, 'pdf']);
+        Route::apiResource('purchase-orders', PurchaseOrderController::class);
+        // Letters on the letterhead (HHL/{year}/{n}); signature only when the signatory signs.
+        Route::get('letters', [LetterController::class, 'index']);
+        Route::post('letters', [LetterController::class, 'store']);
+        Route::get('letters/signatories', [LetterController::class, 'signatories']);
+        Route::post('letters/my-signature', [LetterController::class, 'uploadSignature']);
+        Route::delete('letters/my-signature', [LetterController::class, 'removeSignature']);
+        Route::post('letters/stamp', [LetterController::class, 'uploadStamp']);
+        Route::put('letters/{letter}', [LetterController::class, 'update']);
+        Route::delete('letters/{letter}', [LetterController::class, 'destroy']);
+        Route::post('letters/{letter}/sign', [LetterController::class, 'sign']);
+        Route::post('letters/{letter}/unsign', [LetterController::class, 'unsign']);
+        Route::get('letters/{letter}/pdf', [LetterController::class, 'pdf']);
+
+        // Purchase returns — goods sent back to the supplier (Purchases menu)
+        Route::get('purchase-returns/{purchaseReturn}/pdf', [PurchaseReturnController::class, 'pdf']);
+        Route::apiResource('purchase-returns', PurchaseReturnController::class)->only(['index', 'store', 'show']);
+
+        // Customers = client facilities we do business with; contacts are the people there
+        Route::get('customers',            [\App\Http\Controllers\Api\CustomerController::class, 'index']);
+        Route::get('customers/{hospital}', [\App\Http\Controllers\Api\CustomerController::class, 'show']);
+
+        // Contacts (CRM)
+        Route::post('contacts/{contact}/interactions', [ContactController::class, 'addInteraction']);
+        Route::apiResource('contacts', ContactController::class);
+
+        // Staff
+        Route::get('staff', [StaffController::class, 'index']);
+        Route::post('staff', [StaffController::class, 'store']);
+        Route::get('staff/{user}', [StaffController::class, 'show']);
+        Route::put('staff/{user}', [StaffController::class, 'update']);
+        Route::delete('staff/{user}', [StaffController::class, 'destroy']);
+        Route::patch('staff/{user}/avail_status', [StaffController::class, 'updateAvailStatus']);
+        Route::post('staff/{user}/reset-password', [StaffController::class, 'resetPassword']);
+
+        // Sales team — richer "My Team" view for sales_manager (columns,
+        // recent activity, claiming an existing unmanaged rep).
+        Route::get('sales-team', [SalesTeamController::class, 'index']);
+        Route::get('sales-team/unassigned', [SalesTeamController::class, 'unassigned']);
+        Route::post('sales-team/{user}/assign', [SalesTeamController::class, 'assign']);
+
+        // Contracts
+        Route::get('staff/{user}/contracts', [ContractController::class, 'index']);
+        Route::post('staff/{user}/contracts', [ContractController::class, 'store']);
+        Route::post('contracts/{contract}/renew', [ContractController::class, 'renew']);
+        Route::post('contracts/{contract}/end', [ContractController::class, 'end']);
+        Route::post('contracts/{contract}/resign', [ContractController::class, 'resign']);
+        Route::post('contracts/{contract}/document', [ContractController::class, 'uploadDocument']);
+        Route::post('contracts/{contract}/allowances', [ContractController::class, 'addAllowance']);
+        Route::delete('contracts/{contract}/allowances/{allowance}', [ContractController::class, 'removeAllowance']);
+        Route::get('staff/{user}/payroll-history', [PayrollController::class, 'historyForUser']);
+        Route::get('staff/{user}/payslip/{payrollRun}', [PayrollController::class, 'payslip']);
+        Route::get('staff/{user}/payslip/{payrollRun}/link', [PayrollController::class, 'payslipLink']);
+
+        // Disciplinary cases
+        Route::get('staff/{user}/disciplinary-cases', [DisciplinaryCaseController::class, 'index']);
+        Route::post('staff/{user}/disciplinary-cases', [DisciplinaryCaseController::class, 'store']);
+        Route::post('disciplinary-cases/{disciplinaryCase}/notes', [DisciplinaryCaseController::class, 'addNote']);
+        Route::post('disciplinary-cases/{disciplinaryCase}/advance', [DisciplinaryCaseController::class, 'advanceStage']);
+        Route::post('disciplinary-cases/{disciplinaryCase}/close', [DisciplinaryCaseController::class, 'close']);
+
+        // Career progression
+        Route::get('staff/{user}/position-changes', [PositionChangeController::class, 'index']);
+        Route::post('staff/{user}/position-changes', [PositionChangeController::class, 'store']);
+
+        // HR reports
+        Route::get('hr-reports/org-chart', [HrReportController::class, 'orgChart']);
+        Route::get('hr-reports/turnover', [HrReportController::class, 'turnover']);
+        Route::get('hr-reports/headcount', [HrReportController::class, 'headcountBreakdown']);
+        Route::get('hr-reports/staff-directory', [HrReportController::class, 'staffDirectory']);
+        Route::get('hr-reports/leave-balances', [HrReportController::class, 'leaveBalances']);
+        Route::get('hr-reports/leave-calendar', [HrReportController::class, 'leaveCalendar']);
+        Route::get('hr-reports/recruitment-summary', [HrReportController::class, 'recruitmentSummary']);
+        Route::get('hr-reports/contracts-expiring', [HrReportController::class, 'contractsExpiring']);
+        Route::get('hr-reports/contracts-summary', [HrReportController::class, 'contractsSummary']);
+        Route::get('hr-reports/disciplinary-summary', [HrReportController::class, 'disciplinarySummary']);
+        Route::get('hr-reports/career-progressions', [HrReportController::class, 'careerProgressions']);
+        Route::get('hr-reports/export-pdf-link', [HrReportController::class, 'exportPdfLink']);
+
+        // Recruitment
+        Route::get('vacancies', [VacancyController::class, 'index']);
+        Route::post('vacancies', [VacancyController::class, 'store']);
+        Route::put('vacancies/{vacancy}', [VacancyController::class, 'update']);
+        Route::get('vacancies/{vacancy}/applications', [ApplicationController::class, 'index']);
+        Route::post('vacancies/{vacancy}/applications', [ApplicationController::class, 'store']);
+        Route::get('applicants', [ApplicantController::class, 'index']);
+        Route::post('applicants', [ApplicantController::class, 'store']);
+        Route::get('applicants/{applicant}', [ApplicantController::class, 'show']);
+        Route::put('applicants/{applicant}', [ApplicantController::class, 'update']);
+        Route::post('applicants/{applicant}/cv', [ApplicantController::class, 'uploadCv']);
+        Route::put('applications/{application}/stage', [ApplicationController::class, 'updateStage']);
+        Route::post('applications/{application}/interviews', [InterviewController::class, 'store']);
+        Route::put('interviews/{interview}', [InterviewController::class, 'update']);
+
+        // Payroll — data model + manual entry this round, see PayrollController.
+        Route::get('payroll-runs', [PayrollController::class, 'index']);
+        Route::post('payroll-runs', [PayrollController::class, 'store']);
+        Route::get('payroll-runs/{payrollRun}', [PayrollController::class, 'show']);
+        Route::get('payroll-runs/{payrollRun}/eligible-staff', [PayrollController::class, 'eligibleStaff']);
+        Route::post('payroll-runs/{payrollRun}/items', [PayrollController::class, 'upsertItem']);
+        Route::delete('payroll-runs/{payrollRun}/items/{item}', [PayrollController::class, 'destroyItem']);
+        Route::post('payroll-runs/{payrollRun}/review', [PayrollController::class, 'review']);
+        Route::post('payroll-runs/{payrollRun}/approve', [PayrollController::class, 'approve']);
+        Route::post('payroll-runs/{payrollRun}/mark-paid', [PayrollController::class, 'markPaid']);
+        Route::post('payroll-runs/{payrollRun}/load-staff', [PayrollController::class, 'loadStaff']);
+        // Import staff pay — preview, then the same file with commit=1 saves.
+        Route::post('payroll/staff-import', \App\Http\Controllers\Api\StaffPayImportController::class);
+        Route::get('staff/{user}/salary-adjustments', [SalaryAdjustmentController::class, 'index']);
+        Route::post('staff/{user}/salary-adjustments', [SalaryAdjustmentController::class, 'store']);
+        Route::post('staff/{user}/salary-adjustments/{salaryAdjustment}/approve', [SalaryAdjustmentController::class, 'approve']);
+
+        // Attendance — manual marking is the primary path; import is a
+        // best-effort bulk path, see AttendanceController.
+        Route::get('attendance', [AttendanceController::class, 'index']);
+        Route::post('attendance/mark', [AttendanceController::class, 'mark']);
+        Route::post('attendance/bulk-mark', [AttendanceController::class, 'bulkMark']);
+        Route::post('attendance/import', [AttendanceController::class, 'import']);
+        Route::get('attendance/imports', [AttendanceController::class, 'imports']);
+
+        // Positions
+        Route::get('positions', [PositionController::class, 'index']);
+        Route::post('positions', [PositionController::class, 'store']);
+        Route::put('positions/{position}', [PositionController::class, 'update']);
+        Route::delete('positions/{position}', [PositionController::class, 'destroy']);
+
+        // Tasks (general — separate from service tickets)
+        Route::apiResource('tasks', TaskController::class)->except(['show']);
+
+        // Meetings register (Administrator = secretary; attendees read their own).
+        Route::get('meetings/report',                                [MeetingController::class, 'report']);
+        Route::get('meetings',                                       [MeetingController::class, 'index']);
+        Route::post('meetings',                                      [MeetingController::class, 'store']);
+        Route::get('meetings/{meeting}',                             [MeetingController::class, 'show']);
+        Route::put('meetings/{meeting}',                             [MeetingController::class, 'update']);
+        Route::delete('meetings/{meeting}',                          [MeetingController::class, 'destroy']);
+        Route::post('meetings/{meeting}/circulate',                  [MeetingController::class, 'circulate']);
+        Route::get('meetings/{meeting}/pdf',                         [MeetingController::class, 'pdf']);
+        Route::post('meetings/{meeting}/action-items',               [MeetingController::class, 'storeActionItem']);
+        Route::put('meetings/{meeting}/action-items/{item}',         [MeetingController::class, 'updateActionItem']);
+        Route::delete('meetings/{meeting}/action-items/{item}',      [MeetingController::class, 'destroyActionItem']);
+        Route::post('meetings/{meeting}/attachments',                [MeetingController::class, 'storeAttachment']);
+        Route::delete('meetings/{meeting}/attachments/{attachment}', [MeetingController::class, 'destroyAttachment']);
+
+        // Leave requests
+        Route::get('leave-requests', [LeaveController::class, 'index']);
+        Route::post('leave-requests', [LeaveController::class, 'store']);
+        Route::post('leave-requests/{leaveRequest}/approve', [LeaveController::class, 'approve']);
+        Route::post('leave-requests/{leaveRequest}/reject', [LeaveController::class, 'reject']);
+        Route::post('leave-requests/{leaveRequest}/cancel', [LeaveController::class, 'cancel']);
+
+        // Leave types, balances, holiday calendar, HR settings
+        Route::get('leave-types', [LeaveTypeController::class, 'index']);
+        Route::put('leave-types/{leaveType}', [LeaveTypeController::class, 'update']);
+        Route::get('leave-balances', [LeaveBalanceController::class, 'index']);
+        Route::apiResource('public-holidays', PublicHolidayController::class)->except(['show']);
+        Route::get('hr-settings', [HrSettingController::class, 'index']);
+        Route::put('hr-settings', [HrSettingController::class, 'update']);
+
+        // Late arrivals
+        Route::get('late-arrivals', [LateArrivalController::class, 'index']);
+        Route::post('late-arrivals', [LateArrivalController::class, 'store']);
+
+        // Stock-out requests (approval workflow)
+        Route::get('stock-out-requests', [StockOutRequestController::class, 'index']);
+        Route::post('stock-out-requests', [StockOutRequestController::class, 'store']);
+        Route::post('stock-out-requests/{stockOutRequest}/approve', [StockOutRequestController::class, 'approve']);
+        Route::post('stock-out-requests/{stockOutRequest}/reject', [StockOutRequestController::class, 'reject']);
+        Route::post('stock-out-requests/{stockOutRequest}/cancel', [StockOutRequestController::class, 'cancel']);
+
+        // Per-diem requests (approval workflow)
+        Route::get('per-diem-requests', [PerDiemController::class, 'index']);
+        Route::post('per-diem-requests', [PerDiemController::class, 'store']);
+        Route::get('per-diem-requests/{perDiemRequest}', [PerDiemController::class, 'show']);
+        Route::get('per-diem-requests/{perDiemRequest}/pdf', [PerDiemController::class, 'pdf']);
+        Route::get('per-diem-requests/{perDiemRequest}/xlsx', [PerDiemController::class, 'xlsx']);
+        Route::post('per-diem-requests/{perDiemRequest}/approve-team-lead', [PerDiemController::class, 'approveTeamLead']);
+        Route::post('per-diem-requests/{perDiemRequest}/reject-team-lead', [PerDiemController::class, 'rejectTeamLead']);
+        Route::post('per-diem-requests/{perDiemRequest}/approve', [PerDiemController::class, 'approve']);
+        Route::post('per-diem-requests/{perDiemRequest}/reject', [PerDiemController::class, 'reject']);
+        Route::post('per-diem-requests/{perDiemRequest}/initiate-payment', [PerDiemController::class, 'initiatePayment']);
+        Route::post('per-diem-requests/{perDiemRequest}/mark-paid', [PerDiemController::class, 'markPaid']);
+        Route::post('per-diem-requests/{perDiemRequest}/cancel', [PerDiemController::class, 'cancel']);
+        // Section 8: CTO day-by-day editing, technician edit grants, revision history.
+        Route::post('per-diem-requests/{perDiemRequest}/revise', [PerDiemController::class, 'revise']);
+        Route::post('per-diem-requests/{perDiemRequest}/edit-grants', [PerDiemController::class, 'grantEditAccess']);
+        Route::delete('per-diem-requests/{perDiemRequest}/edit-grants', [PerDiemController::class, 'revokeEditAccess']);
+        Route::post('per-diem-requests/{perDiemRequest}/propose-edit', [PerDiemController::class, 'submitTechnicianEdit']);
+        Route::post('per-diem-requests/{perDiemRequest}/revisions/{revision}/approve', [PerDiemController::class, 'approveTechnicianEdit']);
+        Route::post('per-diem-requests/{perDiemRequest}/revisions/{revision}/reject', [PerDiemController::class, 'rejectTechnicianEdit']);
+
+        // Part cannibalizations (parts pulled from stocked units to fix field machines)
+        Route::get('part-cannibalizations', [PartCannibalizationController::class, 'index']);
+        Route::post('part-cannibalizations/{partCannibalization}/order-replacement', [PartCannibalizationController::class, 'orderReplacement']);
+        Route::post('part-cannibalizations/{partCannibalization}/resolve', [PartCannibalizationController::class, 'resolve']);
+
+        // Notifications
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
+        Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
+
+        // Email accounts (IMAP/SMTP config)
+        Route::post('email-accounts/{emailAccount}/test', [EmailAccountController::class, 'test']);
+        Route::apiResource('email-accounts', EmailAccountController::class);
+
+        // Email (must be ordered: specific paths before {id})
+        Route::get('emails/inbox',        [EmailController::class, 'inbox']);
+        Route::get('emails/sent',         [EmailController::class, 'sent']);
+        Route::get('emails/drafts',       [EmailController::class, 'drafts']);
+        Route::get('emails/unread-count', [EmailController::class, 'unreadCount']);
+        Route::get('emails/folders',      [EmailController::class, 'folders']);
+        Route::get('emails/folder/{folderName}', [EmailController::class, 'folder']);
+        Route::post('emails/sync',        [EmailController::class, 'sync']);
+        Route::post('emails/compose',     [EmailController::class, 'compose']);
+        Route::post('emails/attachments',     [EmailController::class, 'uploadAttachment']);
+        Route::get('emails/{syncedEmail}/attachments/{attachment}', [EmailController::class, 'downloadAttachment']);
+        Route::get('emails/{syncedEmail}',                    [EmailController::class, 'show']);
+        Route::post('emails/{syncedEmail}/reply',             [EmailController::class, 'reply']);
+        Route::post('emails/{syncedEmail}/forward',           [EmailController::class, 'forward']);
+        Route::patch('emails/{syncedEmail}/read',             [EmailController::class, 'markRead']);
+        Route::patch('emails/{syncedEmail}/flag',             [EmailController::class, 'flag']);
+        Route::post('emails/{syncedEmail}/move',              [EmailController::class, 'move']);
+        Route::delete('emails/{syncedEmail}',                 [EmailController::class, 'destroy']);
+    });
+});

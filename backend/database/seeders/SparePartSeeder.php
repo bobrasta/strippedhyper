@@ -1,0 +1,50 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Category;
+use App\Models\InventoryItem;
+use Illuminate\Database\Seeder;
+
+class SparePartSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // 'category' was a plain string column pre-2026-08-07; the schema
+        // moved to category_id (see
+        // 2026_08_07_000002_replace_category_enum_with_category_id...), but
+        // this seeder was never updated to match.
+        $categoryId = Category::where('slug', 'spare-parts')->value('id');
+
+        $parts = [
+            ['sku' => 'VEN-FILTER-01',  'name' => 'Ventilator HEPA Filter',           'unit_cost' => 185000,  'stock_qty' => 12, 'reorder_level' => 5,  'supplier' => 'Mindray East Africa',   'models' => ['Mindray SV300', 'Hamilton C6']],
+            ['sku' => 'DIA-CART-01',    'name' => 'Dialysate Bicarbonate Cartridge',   'unit_cost' => 320000,  'stock_qty' => 3,  'reorder_level' => 5,  'supplier' => 'Fresenius Medical Care', 'models' => ['Siemens ADVIA']],
+            ['sku' => 'XRY-TUBE-01',    'name' => 'X-Ray Tube Assembly',               'unit_cost' => 2800000, 'stock_qty' => 1,  'reorder_level' => 1,  'supplier' => 'Siemens Healthineers',  'models' => ['Siemens MOBILETT', 'Philips Bucky']],
+            ['sku' => 'ULT-PROBE-01',   'name' => 'Ultrasound Convex Probe',           'unit_cost' => 1450000, 'stock_qty' => 2,  'reorder_level' => 2,  'supplier' => 'GE Healthcare Africa',  'models' => ['Mindray DC-80', 'GE Vivid E90']],
+            ['sku' => 'ECG-LEADS-01',   'name' => 'ECG 12-Lead Cable Set',             'unit_cost' => 95000,   'stock_qty' => 8,  'reorder_level' => 3,  'supplier' => 'Philips Healthcare',    'models' => ['Philips PageWriter', 'GE MAC 5500']],
+            ['sku' => 'GEN-BATT-01',    'name' => 'UPS Battery Pack 12V 18Ah',         'unit_cost' => 145000,  'stock_qty' => 6,  'reorder_level' => 4,  'supplier' => 'Power Solutions TZ',    'models' => []],
+            ['sku' => 'VEN-CIRCUIT-01', 'name' => 'Ventilator Breathing Circuit',      'unit_cost' => 48000,   'stock_qty' => 20, 'reorder_level' => 10, 'supplier' => 'Mindray East Africa',   'models' => ['Mindray SV300']],
+            ['sku' => 'DFB-PAD-01',     'name' => 'Defibrillator Pads (pair)',         'unit_cost' => 65000,   'stock_qty' => 0,  'reorder_level' => 5,  'supplier' => 'ZOLL Medical',          'models' => ['ZOLL R Series']],
+        ];
+
+        foreach ($parts as $p) {
+            $models = $p['models'];
+            $sku = $p['sku'];
+            unset($p['models'], $p['sku']);
+            // firstOrCreate by SKU — some of these real spare parts also
+            // appear in InventoryItemSeeder's general catalog (same SKU,
+            // same physical item), so an unconditional create() collided
+            // on the unique sku constraint whenever both seeders ran in
+            // the same fresh db:seed pass.
+            $item = InventoryItem::firstOrCreate(['sku' => $sku], array_merge($p, [
+                'currency'        => 'TZS',
+                'category_id'     => $categoryId,
+                'unit_of_measure' => 'piece',
+                'description'     => null,
+            ]));
+            foreach ($models as $m) {
+                $item->compatibleModels()->firstOrCreate(['machine_model' => $m]);
+            }
+        }
+    }
+}

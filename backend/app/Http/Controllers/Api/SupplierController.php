@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Supplier;
+use Illuminate\Http\Request;
+use App\Support\Tin;
+
+class SupplierController extends Controller
+{
+    public function index(Request $request)
+    {
+        $suppliers = Supplier::query()
+            ->when($request->search, fn ($q, $s) => $q->where('name', 'ilike', "%$s%"))
+            ->when($request->type,   fn ($q, $t) => $q->where('type', $t))
+            ->when($request->active !== null, fn ($q) => $q->where('is_active', $request->boolean('active')))
+            ->withCount('items')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json(['data' => $suppliers]);
+    }
+
+    public function store(Request $request)
+    {
+        abort_if(! $request->user()->hasInventoryManageAuthority(), 403, 'You are not authorised to manage the inventory catalog.');
+
+        $data = $request->validate([
+            'name'          => 'required|string|max:255',
+            'short_code'    => 'nullable|string|max:20|unique:suppliers',
+            'type'          => 'required|in:manufacturer,distributor,importer,local_vendor',
+            'contact_name'  => 'nullable|string|max:255',
+            'contact_email' => 'nullable|email',
+            'contact_phone' => 'nullable|string|max:60',
+            'tin'           => ['nullable', ...Tin::RULE],
+            'website'       => 'nullable|url',
+            'address'       => 'nullable|string',
+            'city'          => 'nullable|string|max:100',
+            'country'       => 'nullable|string|max:100',
+            'currency'      => 'nullable|string|max:10',
+            'payment_terms' => 'nullable|in:prepaid,net_15,net_30,net_60,net_90',
+            'lead_time_days'=> 'nullable|integer|min:0',
+            'rating'        => 'nullable|integer|min:1|max:5',
+            'notes'         => 'nullable|string',
+            'is_active'     => 'boolean',
+        ], ['tin.regex' => Tin::MESSAGE]);
+        if (! empty($data['tin'])) {
+            $data['tin'] = Tin::normalize($data['tin']);
+        }
+
+        $supplier = Supplier::create($data);
+
+        return response()->json(['data' => $supplier], 201);
+    }
+
+    public function show(Supplier $supplier)
+    {
+        $supplier->load(['items' => fn ($q) => $q->with('compatibleModels')]);
+
+        return response()->json(['data' => $supplier]);
+    }
+
+    public function update(Request $request, Supplier $supplier)
+    {
+        abort_if(! $request->user()->hasInventoryManageAuthority(), 403, 'You are not authorised to manage the inventory catalog.');
+
+        $data = $request->validate([
+            'name'          => 'sometimes|required|string|max:255',
+            'short_code'    => 'nullable|string|max:20|unique:suppliers,short_code,' . $supplier->id,
+            'type'          => 'sometimes|in:manufacturer,distributor,importer,local_vendor',
+            'contact_name'  => 'nullable|string|max:255',
+            'contact_email' => 'nullable|email',
+            'contact_phone' => 'nullable|string|max:60',
+            'tin'           => ['nullable', ...Tin::RULE],
+            'website'       => 'nullable|url',
+            'address'       => 'nullable|string',
+            'city'          => 'nullable|string|max:100',
+            'country'       => 'nullable|string|max:100',
+            'currency'      => 'nullable|string|max:10',
+            'payment_terms' => 'nullable|in:prepaid,net_15,net_30,net_60,net_90',
+            'lead_time_days'=> 'nullable|integer|min:0',
+            'rating'        => 'nullable|integer|min:1|max:5',
+            'notes'         => 'nullable|string',
+            'is_active'     => 'boolean',
+        ], ['tin.regex' => Tin::MESSAGE]);
+        if (! empty($data['tin'])) {
+            $data['tin'] = Tin::normalize($data['tin']);
+        }
+
+        $supplier->update($data);
+
+        return response()->json(['data' => $supplier]);
+    }
+
+    public function destroy(Request $request, Supplier $supplier)
+    {
+        abort_if(! $request->user()->hasInventoryManageAuthority(), 403, 'You are not authorised to manage the inventory catalog.');
+
+        $supplier->update(['is_active' => false]);
+
+        return response()->json(null, 204);
+    }
+
+    // Link an inventory item to a supplier with pricing
+    public function addItem(Request $request, Supplier $supplier)
+    {
+        abort_if(! $request->user()->hasInventoryManageAuthority(), 403, 'You are not authorised to manage the inventory catalog.');
+
+        $data = $request->validate([
+            'inventory_item_id'  => 'required|exists:inventory_items,id',
+            'unit_price'         => 'required|integer|min:0',
+            'currency'           => 'nullable|string|max:10',
+            'supplier_sku'       => 'nullable|string|max:100',
+            'lead_time_days'     => 'nullable|integer|min:0',
+            'minimum_order_qty'  => 'nullable|integer|min:1',
+            'is_preferred'       => 'boolean',
+            'notes'              => 'nullable|string',
+        ]);
+
+        $supplier->items()->syncWithoutDetaching([
+            $data['inventory_item_id'] => collect($data)->except('inventory_item_id')->toArray(),
+        ]);
+
+        return response()->json(['data' => $supplier->load('items')]);
+    }
+
+    public function removeItem(Request $request, Supplier $supplier, int $inventoryItemId)
+    {
+        abort_if(! $request->user()->hasInventoryManageAuthority(), 403, 'You are not authorised to manage the inventory catalog.');
+
+        $supplier->items()->detach($inventoryItemId);
+
+        return response()->json(null, 204);
+    }
+}

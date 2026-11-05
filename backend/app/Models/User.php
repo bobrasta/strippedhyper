@@ -1,0 +1,503 @@
+<?php
+
+namespace App\Models;
+
+use App\Services\EffectivePermissionResolver;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, LogsActivity;
+
+    // Deliberately a curated list, not the full $fillable — role/staff_group/
+    // manager_id/is_active/discount+commission rates are the authority-
+    // relevant fields worth an audit trail (who can self-promote or grant
+    // themselves a discount cap is exactly the class of bug fixed earlier —
+    // see feedback_staff_management_gap). avail_status/workload churn too
+    // often to be a useful log, and password is never logged even hashed.
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['role', 'staff_group', 'is_active', 'manager_id', 'position_id', 'max_discount_percent', 'commission_percent'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    // These tier lists are NOT used for the hasXAuthority() boolean checks
+    // below (those go through EffectivePermissionResolver), nor any longer
+    // for notification fan-out (scopeHoldingPermission() below). Kept for
+    // StaffController's built-in admin-role check and the client mirrors.
+    public const ADMIN_TIER = ['super_admin', 'admin'];
+    public const MANAGER_ROLES = ['super_admin', 'admin', 'sales_manager', 'finance_manager'];
+    public const SALES_APPROVAL_ROLES = ['super_admin', 'admin', 'sales_manager'];
+    public const FINANCE_APPROVAL_ROLES = ['super_admin', 'admin', 'finance_manager'];
+    public const HR_APPROVAL_ROLES = ['super_admin', 'admin', 'hr'];
+    public const CTO_TIER = ['super_admin', 'admin', 'cto'];
+    public const TEAM_LEAD_APPROVAL_ROLES = [...self::CTO_TIER, 'team_leader'];
+
+    protected $fillable = [
+        'name', 'email', 'password', 'role', 'staff_group', 'zone',
+        'phone', 'region', 'avatar_initials', 'avail_status',
+        'workload', 'is_active', 'max_discount_percent', 'commission_percent',
+        'manager_id', 'position_id', 'gender', 'hire_date',
+        'next_of_kin_name', 'next_of_kin_phone', 'next_of_kin_relationship',
+        'nssf_number', 'tin_number', 'nida_number', 'biometric_id',
+        'vendor_id', 'avatar_path', 'bio', 'qualifications',
+    ];
+
+    protected $hidden = ['password', 'remember_token'];
+
+    protected function casts(): array
+    {
+        return [
+            'password'  => 'hashed',
+            'is_active' => 'boolean',
+            'workload'  => 'float',
+            'max_discount_percent' => 'float',
+            'commission_percent'   => 'float',
+            'hire_date' => 'date',
+            'qualifications' => 'array',
+        ];
+    }
+
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'manager_id');
+    }
+
+    public function directReports()
+    {
+        return $this->hasMany(User::class, 'manager_id');
+    }
+
+    public function position()
+    {
+        return $this->belongsTo(Position::class);
+    }
+
+    // Section 15.7: where a staff member's own payment details live —
+    // per-diem submission snapshots this onto the plan (payment_snapshot),
+    // so later profile edits never alter an already-submitted plan.
+    public function paymentProfile()
+    {
+        return $this->hasOne(StaffPaymentProfile::class);
+    }
+
+    public function tickets()
+    {
+        return $this->hasMany(ServiceTicket::class, 'assigned_to');
+    }
+
+    public function currentTask()
+    {
+        return $this->hasOne(ServiceTicket::class, 'assigned_to')
+            ->whereIn('status', ['open', 'in_progress'])
+            ->latestOfMany();
+    }
+
+    public function leads()
+    {
+        return $this->hasMany(SalesLead::class, 'assigned_to');
+    }
+
+    public function appNotifications()
+    {
+        return $this->hasMany(AppNotification::class);
+    }
+
+    // Each of these now delegates to the permission resolver instead of a
+    // hardcoded role array — the *behavior* they gate is unchanged (same
+    // call sites, same roles hold them today, per PermissionSeeder's bridge
+    // permissions), but which roles hold them is now admin-editable data,
+    // not a code deploy. See the "authority.*" bridge permissions for why
+    // cto_tier/team_lead_tier/manager_tier/admin_tier aren't decomposed into
+    // fully atomic permissions yet — they each currently gate multiple
+    // distinct actions bundled together in the 3 existing approval flows.
+    public function isAdminTier(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'authority.admin_tier');
+    }
+
+    public function isManagerTier(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'authority.manager_tier');
+    }
+
+    public function hasSalesApprovalAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'sales.approve_order');
+    }
+
+    public function hasSalesViewFullNumbers(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'sales.view_full_numbers');
+    }
+
+    public function hasFinanceApprovalAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'finance.approve_step1');
+    }
+
+    public function hasHrAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'hr.approve_leave');
+    }
+
+    public function hasCtoApprovalAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'authority.cto_tier');
+    }
+
+    public function hasTeamLeadAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'authority.team_lead_tier');
+    }
+
+    public function hasProcurementApprovalAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'procurement.approve_requisition');
+    }
+
+    public function hasStaffManageAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'staff.manage');
+    }
+
+    // sales.create_subordinate_user has existed in the catalog (granted to
+    // sales_manager) since the original access-control pass, but nothing
+    // ever checked it — StaffController::store()/index() were gated purely
+    // on staff.manage (HR/admin), so a sales_manager holding this
+    // permission still got a 403 trying to build their own team. Separate
+    // from hasStaffManageAuthority() deliberately: this only ever grants a
+    // scoped "create/see my own sales reports", never the full roster.
+    public function hasSalesCreateSubordinateAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'sales.create_subordinate_user');
+    }
+
+    // Ticket creation had no gate at all — reachable from the Dashboard's
+    // "New Ticket" shortcut by literally any role, finance/accountant
+    // included, since that button isn't behind the dedicated Service
+    // screen. Reuses screens.service rather than a new permission key:
+    // whoever can see the Service screen is exactly who should be able to
+    // open a ticket from anywhere else in the app too.
+    public function hasServiceTicketCreateAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'screens.service');
+    }
+
+    // Resolving a ticket had no gate at all — any authenticated user could
+    // call resolve() on any ticket. Reuses services.close_ticket, a
+    // permission that already existed in the catalog but was never wired
+    // to an actual check anywhere (and was granted to the wrong role —
+    // see the catch-up migration that repoints it to cto/team_leader).
+    public function hasServiceTicketResolveAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'services.close_ticket');
+    }
+
+    // Hospital create/edit/delete had no gate at all — any authenticated
+    // user could call store()/update()/destroy(). A real permission
+    // (not a hardcoded role list) so a Director/CTO can hand it to a
+    // specific person via the Role Builder/per-user override without a
+    // code change.
+    public function hasHospitalManageAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'hospitals.manage');
+    }
+
+    // StaffController::index()/show() (the task-assignment roster) had no
+    // gate at all — reuses screens.staff, the same permission that
+    // already governs whether the Staff screen even shows in the sidebar,
+    // so the backend can't be reached directly by anyone who shouldn't
+    // see the roster in the UI either.
+    public function hasStaffViewAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'screens.staff');
+    }
+
+    public function hasProcurementCreateAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'procurement.create_po');
+    }
+
+    /** Purchases menu: add a purchase (a PO) and record returns — procurement or purchases.create. */
+    public function hasPurchaseCreateAuthority(): bool
+    {
+        return $this->hasProcurementCreateAuthority()
+            || app(EffectivePermissionResolver::class)->can($this, 'purchases.create');
+    }
+
+    public function hasProcurementSalesStageAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'procurement.approve_po_sales_stage');
+    }
+
+    public function hasAccountantAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'procurement.initiate_payment');
+    }
+
+    // Deliberately two separate checks, not one — the logistics role holds
+    // both permissions, but storekeeper only holds receive_order (they
+    // already receive shipments today with no gate at all; this preserves
+    // that without also letting them mark customer orders delivered).
+    public function hasLogisticsDeliverAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'logistics.deliver_order');
+    }
+
+    public function hasLogisticsReceiveAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'logistics.receive_order');
+    }
+
+    public function hasEquipmentSignOffAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'services.sign_off_installation');
+    }
+
+    // Sales lead/quotation/order create+edit had no gate at all — any
+    // authenticated user of any role could write these. sales.create and
+    // sales.edit already existed in the catalog (sales/sales_manager hold
+    // both) but were never wired to a real check anywhere.
+    public function hasSalesCreateAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'sales.create');
+    }
+
+    public function hasSalesEditAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'sales.edit');
+    }
+
+    /** Engineers (2026-10-23): create and edit their own draft quotations — no orders or invoices. */
+    public function hasQuotationPrepareAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'sales.prepare_quotation');
+    }
+
+    public function hasSalesIssueQuotationAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'sales.issue_quotation');
+    }
+
+    // RevenueController had no gate at all — any role could read exact
+    // revenue figures. Reuses screens.revenue (already governs the nav
+    // item) rather than finance.view_revenue, whose masked/all scope split
+    // is sales/sales_manager-inclusive at the screen level but narrower at
+    // the module-permission level; the screen key is the boundary that
+    // actually matches who should see this data.
+    public function hasRevenueViewAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'screens.revenue');
+    }
+
+    // Inventory item/supplier/location CRUD and raw stock-movement posting
+    // had no gate at all — any role could create suppliers, edit the item
+    // catalog, or post a movement that bypasses both the PO-receive and
+    // StockOutRequest approval flows. New permission (inventory.adjust_stock
+    // is scoped to quantity adjustments specifically, not catalog/supplier
+    // writes) granted to storekeeper/procurement_manager, who already hold
+    // the 'inventory' screen and are the roles that operationally touch it.
+    public function hasInventoryManageAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'inventory.manage_catalog');
+    }
+
+    public function hasStockAdjustAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'inventory.adjust_stock');
+    }
+
+    public function hasMachineReceiveAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'machines.receive');
+    }
+
+    // PurchaseOrderController::index()/show() had no gate at all — any
+    // authenticated user (a technician, a CS rep) could list every PO
+    // including supplier/cost data, or view any single one. Reuses the
+    // union of the two screen keys that actually govern where a PO
+    // list/detail is reachable from today (Inventory's Purchase Orders
+    // tab, Approvals' PO tab) rather than re-deriving a narrower
+    // procurement-permission list — cto and team_leader have real,
+    // working read access via those screens without holding any
+    // procurement.* permission, same reasoning as
+    // hasRevenueViewAuthority() above ("the screen key is the boundary
+    // that actually matches who should see this data"). Also includes
+    // the procurement-domain authorities directly: every role that
+    // already reaches a PO screen holds one of these two screen keys
+    // today (confirmed against live role_has_permissions), so this is
+    // belt-and-suspenders for the read gate specifically — but
+    // sales_manager holds procurement.approve_po_sales_stage without
+    // screens.approvals (a separate, pre-existing nav gap), so without
+    // this a role that can approve a PO stage couldn't read the PO it's
+    // approving.
+    public function hasPurchaseOrderReadAuthority(): bool
+    {
+        return $this->hasProcurementCreateAuthority()
+            || $this->hasProcurementSalesStageAuthority()
+            || $this->hasAccountantAuthority()
+            || $this->hasLogisticsReceiveAuthority()
+            || $this->hasDirectorAuthority()
+            || app(EffectivePermissionResolver::class)->can($this, 'screens.inventory')
+            || app(EffectivePermissionResolver::class)->can($this, 'screens.approvals')
+            || app(EffectivePermissionResolver::class)->can($this, 'screens.purchases');
+    }
+
+    public function hasMachineAllocateAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'machines.allocate');
+    }
+
+    // ServiceTicketController had no assign() method — assignment goes
+    // through update(), gated CTO-tier only, so team_leader held
+    // services.assign_ticket in the catalog but nothing ever checked it.
+    public function hasServiceTicketAssignAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'services.assign_ticket');
+    }
+
+    // The general Task board (/tasks) used authority.manager_tier — held
+    // only by super_admin/admin/sales_manager/finance_manager — even though
+    // cto/team_leader are the roles that actually supervise technicians and
+    // hold the equivalent ticket-assign/sign-off authority everywhere else
+    // in the service-ticket world. Separate permission (not a widened
+    // manager_tier) so this doesn't change what MANAGER_ROLES/isManagerTier()
+    // mean anywhere else that already consumes them.
+    public function hasTaskManageAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'tasks.manage_board');
+    }
+
+    // "Director" is a semantic alias for the existing admin tier, not a new
+    // role or membership list — keeps intent readable at approval call sites
+    // without a second list that can drift from authority.admin_tier. Also
+    // passes for a non-admin-tier user holding an active Delegation, so
+    // every existing director-gated call site (Expense, PurchaseOrder, ...)
+    // honours a delegation automatically without being touched.
+    public function hasDirectorAuthority(): bool
+    {
+        return $this->isAdminTier() || $this->activeDelegationAsDelegate() !== null;
+    }
+
+    // Final authorisation of money (Director approval of expenses, POs,
+    // payroll, vendor bills/fees, credit notes, salary changes; deleting
+    // approved money records; approval routing). Narrower than
+    // hasDirectorAuthority(): the CTO may hold admin-tier through a per-user
+    // override but never this — authority.final_money_approval is one of
+    // EffectivePermissionResolver::RESERVED. An active Delegation still
+    // grants it, so the Director can hand it over while away.
+    public function hasFinalMoneyAuthority(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'authority.final_money_approval')
+            || $this->activeDelegationAsDelegate() !== null;
+    }
+
+    // The Director's own seat, never via a delegation: creating/revoking
+    // delegations, making someone admin-tier, editing an admin-tier account,
+    // granting reserved permissions.
+    public function isDirector(): bool
+    {
+        return app(EffectivePermissionResolver::class)->can($this, 'authority.final_money_approval');
+    }
+
+    // Users who explicitly hold $key — through their role, a direct grant or
+    // an allow override, minus deny overrides. Deliberately NOT the
+    // admin-tier expansion in EffectivePermissionResolver: notification
+    // fan-out goes to whoever owns that queue, so a CTO with admin-tier
+    // isn't sent every HR or Director notification.
+    public function scopeHoldingPermission($query, string $key)
+    {
+        $permissionId = DB::table('permissions')->where('name', $key)->value('id');
+        if ($permissionId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $viaRole = DB::table('model_has_roles')
+            ->join('role_has_permissions', 'role_has_permissions.role_id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_type', self::class)
+            ->where('role_has_permissions.permission_id', $permissionId)
+            ->select('model_has_roles.model_id');
+        $direct = DB::table('model_has_permissions')
+            ->where('model_type', self::class)
+            ->where('permission_id', $permissionId)
+            ->select('model_id');
+        $override = fn (string $effect) => DB::table('user_permission_overrides')
+            ->where('permission_id', $permissionId)
+            ->where('effect', $effect)
+            ->select('user_id');
+
+        return $query
+            ->where(fn ($q) => $q->whereIn('users.id', $viaRole)
+                ->orWhereIn('users.id', $direct)
+                ->orWhereIn('users.id', $override('allow')))
+            ->whereNotIn('users.id', $override('deny'));
+    }
+
+    // The delegation, if any, currently letting this user act with Director
+    // authority despite not being admin-tier themselves. Also used to stamp
+    // approval-log rows with which delegation an approval was made under.
+    public function activeDelegationAsDelegate(): ?Delegation
+    {
+        // A standby delegation (Gabriel for Sharif) only counts while that person is away.
+        return Delegation::query()->active()->where('delegate_id', $this->id)->latest('starts_at')->get()
+            ->first(fn (Delegation $d) => $d->standby_for_id === null || Delegation::isAway($d->standby_for_id));
+    }
+
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class);
+    }
+
+    // vendor_staff never holds a screens.* permission (Section 16.6 #1) —
+    // scoped purely to their own vendor_id in VendorFeeController/
+    // ReceiptController/DeliveryJobController, not the internal app's nav.
+    public function isVendorStaff(): bool
+    {
+        return $this->role === 'vendor_staff';
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(Contract::class);
+    }
+
+    public function activeContract()
+    {
+        return $this->hasOne(Contract::class)->where('status', 'active')->latestOfMany('start_date');
+    }
+
+    public function disciplinaryCases()
+    {
+        return $this->hasMany(DisciplinaryCase::class);
+    }
+
+    public function salaryAdjustments()
+    {
+        return $this->hasMany(SalaryAdjustment::class);
+    }
+
+    public function attendanceRecords()
+    {
+        return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function positionChanges()
+    {
+        return $this->hasMany(PositionChange::class);
+    }
+}

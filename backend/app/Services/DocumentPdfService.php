@@ -1,0 +1,946 @@
+<?php
+
+namespace App\Services;
+
+use App\Support\DocumentTerms;
+use App\Models\Invoice;
+use App\Models\Quotation;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as PdfInstance;
+use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
+use Mpdf\Mpdf;
+
+class DocumentPdfService
+{
+    // Quotations and Invoices share one physical layout — ported from the
+    // "Hypermed Proforma Invoice" mPDF design prototyped at
+    // /var/www/html/me/system/invoice.php (dark navy header/footer bands
+    // repeating on every page, big condensed uppercase title, bordered
+    // doc-no box, clean-line item rows). The only differences between the
+    // two document types are the title/label/tag text and which model's
+    // data feeds the same template — see render().
+    public function quotationPdf(Quotation $quotation): Response
+    {
+        $quotation->loadMissing('items');
+        $company = config('company');
+
+        // Line discount = list amount less the line total (covers both the
+        // older percentage and the TSh discount).
+        $lineDiscount = fn ($i) => max(0, (int) round($i->quantity * $i->unit_price) - (int) $i->total_price);
+        $items = $quotation->items->values()->map(fn ($i, $idx) => [
+            $idx + 1, $i->description, '-', '-', $i->unit_of_measure ?: '-',
+            $this->trimmedQuantity($i->quantity), number_format($i->unit_price, 2),
+            number_format($i->total_price, 2), $lineDiscount($i),
+        ])->all();
+        $lineDiscounts = $quotation->items->sum($lineDiscount);
+
+        $client = array_values(array_filter([$quotation->client_name, $quotation->client_contact, $quotation->client_email,
+            $quotation->client_tin ? 'TIN: ' . $quotation->client_tin : null]));
+
+        return $this->render([
+            'title'        => 'PROFORMA INVOICE',
+            'docLabel'     => 'Proforma No:',
+            'docNumber'    => $quotation->quotation_number,
+            'date'         => ($quotation->created_at ?? now())->format('d M Y, H:i'),
+            'tag'          => 'QUOTATION · VALID UNTIL ' . ($quotation->valid_until?->format('d M Y') ?? 'N/A'),
+            'client'       => $client,
+            'clientAddress'=> array_values(array_filter([$quotation->lead?->hospital?->address])),
+            'items'        => $items,
+            'subtotal'     => number_format($quotation->subtotal + $lineDiscounts, 2),
+            'discount'     => number_format($quotation->discount_amount + $lineDiscounts, 2),
+            'tax'          => number_format($quotation->tax_amount, 2),
+            'total'        => number_format($quotation->total_amount, 2),
+            'currencyCode' => $this->currencyPrefix($quotation->currency),
+            'currency'     => $this->currencyLabel($quotation->currency),
+            'terms'        => DocumentTerms::resolve($quotation->term_items, $quotation->terms),
+            'filename'     => "{$quotation->quotation_number}.pdf",
+        ]);
+    }
+
+    public function invoicePdf(Invoice $invoice): Response
+    {
+        $invoice->loadMissing(['lineItems', 'hospital']);
+        $company = config('company');
+
+        $items = $invoice->lineItems->values()->map(fn ($i, $idx) => [
+            $idx + 1, $i->description, $i->lot_number ?: '-', $i->expiry_date?->format('d/m/Y') ?? '-', $i->unit_of_measure ?: '-',
+            $this->trimmedQuantity($i->quantity), number_format($i->unit_price, 2),
+            number_format($i->total, 2), (int) $i->discount,
+        ])->all();
+        $lineDiscounts = (int) $invoice->lineItems->sum('discount');
+
+        $client = array_values(array_filter([
+            $invoice->hospital?->name ?? $invoice->client_name, $invoice->client_contact, $invoice->client_email,
+            ($invoice->client_tin ?? $invoice->hospital?->tin) ? 'TIN: ' . ($invoice->client_tin ?? $invoice->hospital?->tin) : null,
+        ]));
+
+        $kind = match ($invoice->status) { 'proforma' => 'PROFORMA INVOICE', 'draft' => 'DRAFT INVOICE', default => 'INVOICE' };
+
+        return $this->render([
+            'title'        => $kind,
+            'docLabel'     => $kind === 'PROFORMA INVOICE' ? 'Proforma No:' : 'Invoice No:',
+            'docNumber'    => $invoice->invoice_number,
+            'date'         => ($invoice->issue_date ?? now())->format('d M Y'),
+            'tag'          => $kind . ' · DUE ' . ($invoice->due_date?->format('d M Y') ?? 'N/A')
+                . ($invoice->pay_term_number !== null ? " · TERMS {$invoice->pay_term_number} " . strtoupper($invoice->pay_term_type ?? 'days') : ''),
+            'client'       => $client,
+            'clientAddress'=> array_values(array_filter([$invoice->hospital?->address])),
+            'items'        => $items,
+            // Subtotal before line discounts, then the discounts.
+            'subtotal'     => number_format($invoice->subtotal + $lineDiscounts, 2),
+            'discount'     => number_format($lineDiscounts, 2),
+            'tax'          => number_format($invoice->tax_amount, 2),
+            'shipping'     => number_format((int) $invoice->shipping_charges, 2),
+            'total'        => number_format($invoice->total, 2),
+            // Credit sales: show what's been paid so far and what's left.
+            'paid'         => $invoice->amount_paid > 0 ? number_format($invoice->amount_paid, 2) : null,
+            'balance'      => $invoice->amount_paid > 0 ? number_format($invoice->balance_due, 2) : null,
+            'currencyCode' => $this->currencyPrefix($invoice->currency),
+            'currency'     => $this->currencyLabel($invoice->currency),
+            'terms'        => DocumentTerms::resolve($invoice->term_items),
+            // The invoice form's "Sell note" — printed just above the terms.
+            'note'         => trim((string) $invoice->notes) ?: null,
+            'filename'     => "{$invoice->invoice_number}.pdf",
+        ]);
+    }
+
+    public function deliveryNotePdf(Invoice $invoice): Response
+    {
+        $invoice->loadMissing(['lineItems', 'hospital']);
+
+        $client = array_values(array_filter([
+            $invoice->hospital?->name ?? $invoice->client_name, $invoice->client_contact, $invoice->client_email,
+            ($invoice->client_tin ?? $invoice->hospital?->tin) ? 'TIN: ' . ($invoice->client_tin ?? $invoice->hospital?->tin) : null,
+        ]));
+
+        return $this->render([
+            'delivery'      => true,
+            'title'         => 'DELIVERY NOTE',
+            'docLabel'      => 'Delivery Note No:',
+            'docNumber'     => 'DN-' . $invoice->invoice_number,
+            'invoiceNumber' => $invoice->invoice_number,
+            'date'          => now()->format('d M Y'),
+            'tag'           => 'DELIVERY NOTE · INVOICE ' . $invoice->invoice_number
+                . ($invoice->shipping_status ? ' · ' . strtoupper($invoice->shipping_status) : ''),
+            'client'        => $client,
+            'clientAddress' => array_values(array_filter([$invoice->shipping_address ?: $invoice->hospital?->address])),
+            'items'         => $invoice->lineItems->values()->map(fn ($i, $idx) => [
+                $idx + 1, $i->description, $this->trimmedQuantity($i->quantity)
+                    . ($i->unit_of_measure ? ' ' . $i->unit_of_measure : ''),
+                implode(' · ', array_filter([$i->lot_number ? "Lot {$i->lot_number}" : null,
+                    $i->expiry_date ? 'Exp ' . $i->expiry_date->format('d/m/Y') : null])),
+            ])->all(),
+            'shippingDetails' => $invoice->shipping_details,
+            'deliveredTo'     => $invoice->delivered_to,
+            'currency'      => '',
+            'filename'      => "DN-{$invoice->invoice_number}.pdf",
+        ]);
+    }
+
+    /** Items (quantities only), delivery details and receipt signatures. */
+    private function deliveryNoteBody(array $d): string
+    {
+        $html = "<table id='items'><tr>
+            <th style='width:6%'>#</th><th style='white-space:normal'>DESCRIPTION</th>
+            <th class='num' style='width:14%'>QTY ORDERED</th><th class='num' style='width:16%'>QTY RECEIVED</th></tr>";
+        foreach ($d['items'] as $i) {
+            $html .= '<tr><td class="dim">' . e($i[0]) . '</td><td style="font-weight:500">' . e($i[1])
+                . ($i[3] ? '<div class="dim" style="font-weight:400; font-size:7.5pt">' . e($i[3]) . '</div>' : '') . '</td>'
+                . '<td class="num" style="font-weight:700">' . e($i[2]) . '</td><td class="num">&nbsp;</td></tr>';
+        }
+        $html .= '</table>';
+
+        $facts = array_filter([
+            'Delivered to' => $d['deliveredTo'] ?? null,
+            'Shipping details' => $d['shippingDetails'] ?? null,
+        ]);
+        if ($facts) {
+            $html .= "<div id='terms'><div class='terms-h'><strong>DELIVERY DETAILS</strong></div><table id='termsrow'><tr>";
+            foreach ($facts as $label => $text) {
+                $html .= "<td style='width:50%'><div class='terms-t'><strong>" . e($label) . '</strong></div><div>' . nl2br(e($text)) . '</div></td>';
+            }
+            $html .= '</tr></table></div>';
+        }
+
+        $html .= "<div style='margin-top:10mm; font-size:8.5pt; color:#5d5d60;'>Goods received in good order and condition.</div>"
+            . "<table style='margin-top:14mm'><tr>";
+        foreach (['DELIVERED BY (NAME & SIGNATURE)', 'RECEIVED BY (NAME & SIGNATURE)', 'DATE & STAMP'] as $label) {
+            $html .= "<td style='width:33%; padding-right:6mm;'><table class='sigline-table'><tr><td class='sigline-cell'>&nbsp;</td></tr>"
+                . "<tr><td class='sigcol-lbl'><strong>{$label}</strong></td></tr></table></td>";
+        }
+
+        return $html . '</tr></table>';
+    }
+
+    /**
+     * Customer statement (Credit & Receivables) — the array built by
+     * ReceivablesController::buildStatement(), on the invoice letterhead.
+     */
+    public function statementPdf(array $s): Response
+    {
+        $c = $s['customer'];
+        $from = $s['period']['from'] ? Carbon::parse($s['period']['from'])->format('d M Y') : null;
+        $to = Carbon::parse($s['period']['to'] ?? now())->format('d M Y');
+        $period = $from ? "{$from} – {$to}" : "All dates to {$to}";
+        $slug = preg_replace('/[^A-Za-z0-9]+/', '-', (string) $c['client_name']);
+
+        return $this->render([
+            'statement'     => true,
+            'title'         => 'STATEMENT',
+            'docLabel'      => 'Statement No:',
+            'docNumber'     => 'ST-' . now()->format('ymd') . '-' . ($c['hospital_id'] ?? substr(md5((string) $c['client_name']), 0, 4)),
+            'date'          => now()->format('d M Y'),
+            'tag'           => 'CUSTOMER STATEMENT · ' . strtoupper($period),
+            'client'        => array_values(array_filter([$c['client_name'], $c['phone'], $c['email'], $c['tin'] ? 'TIN: ' . $c['tin'] : null])),
+            'clientAddress' => array_values(array_filter([$c['address']])),
+            'period'        => $period,
+            'statementData' => $s,
+            'currencyCode'  => 'TSh',
+            'currency'      => 'TSh (Tanzanian Shilling)',
+            'filename'      => 'Statement-' . trim($slug, '-') . '-' . now()->format('Y-m-d') . '.pdf',
+        ]);
+    }
+
+    /** A creditor's statement (what Hypermed owes a supplier/vendor), in their currency. */
+    public function creditorStatementPdf(array $s): Response
+    {
+        $c = $s['creditor'];
+        $from = $s['period']['from'] ? Carbon::parse($s['period']['from'])->format('d M Y') : null;
+        $to = Carbon::parse($s['period']['to'] ?? now())->format('d M Y');
+        $period = $from ? "{$from} – {$to}" : "All dates to {$to}";
+        $slug = preg_replace('/[^A-Za-z0-9]+/', '-', (string) $c['name']);
+
+        return $this->render([
+            'statement'         => true,
+            'creditorStatement' => true,
+            'title'             => 'CREDITOR LEDGER',
+            'docLabel'          => 'Ledger No:',
+            'docNumber'         => 'CL-' . now()->format('ymd') . '-' . strtoupper(substr($c['type'], 0, 1)) . $c['id'],
+            'date'              => now()->format('d M Y'),
+            'tag'               => strtoupper($c['category']) . ' CREDITOR · ' . strtoupper($period),
+            'client'            => array_values(array_filter([$c['name'], $c['contact_person'], $c['phone'], $c['email']])),
+            'clientAddress'     => array_values(array_filter([$c['country']])),
+            'period'            => $period,
+            'statementData'     => $s,
+            'currencyCode'      => $c['currency'],
+            'currency'          => $c['currency'],
+            'filename'          => 'Creditor-Ledger-' . trim($slug, '-') . '-' . now()->format('Y-m-d') . '.pdf',
+        ]);
+    }
+
+    /** Totals strip and the ledger in the creditor's currency, with the TZS columns for foreign creditors. */
+    private function creditorStatementBody(array $d): string
+    {
+        $s = $d['statementData'];
+        $cur = $s['creditor']['currency'];
+        $fx = $cur !== 'TZS';
+        $n = fn ($v) => number_format((float) $v, $fx ? 2 : 0);
+        $t = fn ($v) => number_format((int) $v);
+        $date = fn ($v) => $v ? Carbon::parse($v)->format('d M Y') : '—';
+
+        $html = "<table id='sumstrip'><tr>";
+        foreach (['OPENING BALANCE' => $s['opening_balance'], 'TOTAL CREDIT' => $s['total_credit'],
+            'TOTAL DEBIT' => $s['total_debit'], 'BALANCE OWED' => $s['closing_balance']] as $label => $value) {
+            $html .= "<td style='width:25%'><div class='meta-lbl'><strong>{$label}</strong></div><div class='sum-val'><strong>" . e($cur . ' ' . $n($value)) . '</strong></div></td>';
+        }
+        $html .= '</tr></table>';
+
+        $html .= "<table id='ledger' repeat_header='1'><thead><tr><th style='width:11%'>DATE</th><th style='white-space:normal'>NARRATION</th><th style='width:11%'>REF</th>"
+            . ($fx ? "<th class='num' style='width:8%'>XRATE</th>" : '')
+            . "<th class='num' style='width:12%'>DEBIT</th><th class='num' style='width:12%'>CREDIT</th><th class='num' style='width:13%'>BALANCE</th>"
+            . ($fx ? "<th class='num' style='width:13%'>BALANCE TZS</th>" : '') . '</tr></thead>';
+        if ($s['period']['from']) {
+            $html .= "<tr><td class='dim'>" . e($date($s['period']['from'])) . "</td><td style='font-weight:500'>Opening balance</td><td></td>"
+                . ($fx ? '<td></td>' : '') . "<td></td><td></td><td class='num' style='font-weight:700'>" . e($n($s['opening_balance'])) . '</td>'
+                . ($fx ? "<td class='num'>" . e($t($s['opening_balance_tzs'])) . '</td>' : '') . '</tr>';
+        }
+        foreach ($s['entries'] as $e) {
+            $html .= "<tr><td class='dim'>" . e($date($e['date'])) . "</td><td style='font-weight:500'>" . e($e['narration']) . "</td><td class='dim'>" . e($e['ref']) . '</td>'
+                . ($fx ? "<td class='num dim'>" . e(rtrim(rtrim(number_format($e['rate'], 4), '0'), '.')) . '</td>' : '')
+                . "<td class='num'>" . ($e['debit'] ? e($n($e['debit'])) : '') . '</td>'
+                . "<td class='num'>" . ($e['credit'] ? e($n($e['credit'])) : '') . '</td>'
+                . "<td class='num' style='font-weight:700'>" . e($n($e['balance'])) . '</td>'
+                . ($fx ? "<td class='num'>" . e($t($e['balance_tzs'])) . '</td>' : '') . '</tr>';
+        }
+        if (! $s['entries']) {
+            $html .= "<tr><td colspan='" . ($fx ? 8 : 6) . "' class='dim'>No invoices or payments in this period.</td></tr>";
+        }
+        $html .= '</table>';
+
+        $html .= "<table id='totals' align='right'>"
+            . "<tr><td class='lbl'>Total credit (invoices)</td><td class='val'>" . e($cur . ' ' . $n($s['total_credit'])) . '</td></tr>'
+            . "<tr class='muted'><td class='lbl'>Total debit (payments)</td><td class='val'>" . e($cur . ' ' . $n($s['total_debit'])) . '</td></tr>'
+            . "<tr class='grand'><td class='lbl'><div class='grand-lbl'><strong>BALANCE OWED</strong></div></td>"
+            . "<td class='val'><div class='grand-val'><strong>" . e($cur . ' ' . $n($s['closing_balance'])) . '</strong></div></td></tr>'
+            . ($fx ? "<tr class='muted'><td class='lbl'>In TZS at the last rate</td><td class='val'>TSh " . e($t($s['closing_balance_tzs'])) . '</td></tr>' : '')
+            . '</table>';
+
+        return $html;
+    }
+
+    /** Summary strip, the dated ledger, then invoice status with ageing. */
+    private function statementBody(array $d): string
+    {
+        $s = $d['statementData'];
+        $n = fn ($v) => number_format((int) $v);
+        $date = fn ($v) => $v ? Carbon::parse($v)->format('d M Y') : '—';
+
+        $html = "<table id='sumstrip'><tr>";
+        foreach ([
+            'OPENING BALANCE' => $s['opening_balance'],
+            'INVOICED' => $s['total_invoiced'],
+            'PAID & CREDITED' => $s['total_paid'],
+            'CLOSING BALANCE' => $s['closing_balance'],
+        ] as $label => $value) {
+            $html .= "<td style='width:20%'><div class='meta-lbl'><strong>{$label}</strong></div><div class='sum-val'><strong>TSh " . e($n($value)) . '</strong></div></td>';
+        }
+        $html .= "<td style='width:20%'><div class='meta-lbl'><strong>% COLLECTED</strong></div><div class='sum-val'><strong>"
+            . ($s['collected_pct'] === null ? '—' : e($s['collected_pct']) . '%') . '</strong></div></td>';
+        $html .= '</tr></table>';
+
+        $html .= "<table id='ledger' repeat_header='1'><thead><tr>
+            <th style='width:13%'>DATE</th><th style='width:12%'>REF.</th><th style='white-space:normal'>DESCRIPTION</th>
+            <th class='num' style='width:13%'>DEBIT</th><th class='num' style='width:13%'>CREDIT</th><th class='num' style='width:14%'>BALANCE</th></tr></thead>";
+        if ($s['period']['from']) {
+            $html .= "<tr><td class='dim'>" . e($date($s['period']['from'])) . "</td><td></td><td style='font-weight:500'>Opening balance</td>"
+                . "<td class='num'></td><td class='num'></td><td class='num' style='font-weight:700'>" . e($n($s['opening_balance'])) . '</td></tr>';
+        }
+        foreach ($s['entries'] as $e) {
+            $html .= "<tr><td class='dim'>" . e($date($e['date'])) . "</td><td class='dim'>" . e($e['ref']) . '</td>'
+                . "<td style='font-weight:500'>" . e($e['description']) . '</td>'
+                . "<td class='num'>" . ($e['debit'] ? e($n($e['debit'])) : '') . '</td>'
+                . "<td class='num'>" . ($e['credit'] ? e($n($e['credit'])) : '') . '</td>'
+                . "<td class='num' style='font-weight:700'>" . e($n($e['balance'])) . '</td></tr>';
+        }
+        if (! $s['entries']) {
+            $html .= "<tr><td colspan='6' class='dim'>No invoices or payments in this period.</td></tr>";
+        }
+        $html .= '</table>';
+
+        $html .= "<table id='totals' align='right'>"
+            . "<tr><td class='lbl'>Opening balance</td><td class='val'>TSh " . e($n($s['opening_balance'])) . '</td></tr>'
+            . "<tr><td class='lbl'>Invoiced</td><td class='val'>TSh " . e($n($s['total_invoiced'])) . '</td></tr>'
+            . "<tr class='muted'><td class='lbl'>Paid &amp; credited</td><td class='val'>TSh " . e($n($s['total_paid'])) . '</td></tr>'
+            . "<tr class='grand'><td class='lbl'><div class='grand-lbl'><strong>CLOSING BALANCE</strong></div></td>"
+            . "<td class='val'><div class='grand-val'><strong>TSh " . e($n($s['closing_balance'])) . '</strong></div></td></tr>';
+        if ($s['balance_due'] !== $s['closing_balance']) {
+            $html .= "<tr class='grand'><td class='lbl'><div class='grand-lbl'><strong>BALANCE DUE TODAY</strong></div></td>"
+                . "<td class='val'><div class='bal-val'><strong>TSh " . e($n($s['balance_due'])) . '</strong></div></td></tr>';
+        }
+        $html .= '</table>';
+
+        // Invoice status at the end of the period (payments as recorded,
+        // by the date paid); ageing of what was still owed then.
+        $rows = $s['invoice_status'];
+        if ($rows) {
+            $aging = ['CURRENT' => 0, '1–30 DAYS' => 0, '31–60 DAYS' => 0, '61–90 DAYS' => 0, 'OVER 90 DAYS' => 0];
+            foreach ($rows as $i) {
+                $d = $i['days_overdue'];
+                $aging[match (true) { $d === 0 => 'CURRENT', $d <= 30 => '1–30 DAYS', $d <= 60 => '31–60 DAYS', $d <= 90 => '61–90 DAYS', default => 'OVER 90 DAYS' }] += $i['remaining'];
+            }
+            $label = ['paid' => 'Paid', 'partly_paid' => 'Partly paid', 'unpaid' => 'Unpaid'];
+
+            $html .= "<div id='terms' style='clear:both'><div class='terms-h'><strong>INVOICE STATUS ON " . e(strtoupper($date($s['as_at']))) . '</strong></div></div>'
+                . "<table id='ledger' repeat_header='1' style='margin-top:6px'><thead><tr>
+                <th style='width:14%'>INVOICE</th><th style='width:11%'>ISSUED</th><th style='width:11%'>DUE</th>
+                <th class='num'>TOTAL</th><th class='num'>PAID</th><th class='num'>REMAINING</th><th style='width:11%'>STATUS</th><th class='num' style='width:9%'>OVERDUE</th></tr></thead>";
+            foreach ($rows as $i) {
+                $html .= "<tr><td style='font-weight:500'>" . e($i['invoice_number']) . "</td><td class='dim'>" . e($date($i['issue_date'])) . '</td>'
+                    . "<td class='dim'>" . e($date($i['due_date'])) . "</td><td class='num'>" . e($n($i['total'])) . '</td>'
+                    . "<td class='num'>" . e($n($i['paid'] + $i['credited'])) . "</td><td class='num' style='font-weight:700'>" . e($n($i['remaining'])) . '</td>'
+                    . "<td>" . e($label[$i['status']] ?? $i['status']) . '</td>'
+                    . "<td class='num'>" . ($i['days_overdue'] ? e($i['days_overdue']) . ' d' : '—') . '</td></tr>';
+            }
+            $html .= '</table>';
+
+            $html .= "<table id='sumstrip' style='margin-top:10px'><tr>";
+            foreach ($aging as $label => $value) {
+                $html .= "<td style='width:20%'><div class='meta-lbl'><strong>{$label}</strong></div><div class='age-val'><strong>TSh " . e($n($value)) . '</strong></div></td>';
+            }
+            $html .= '</tr></table>';
+        }
+
+        return $html;
+    }
+
+    public function hrReportPdf(array $data, string $filename): Response
+    {
+        return $this->fromView('pdf.hr_report', $data, [
+            'title' => 'HR REPORT', 'docLabel' => 'Year', 'docNumber' => (string) $data['year'],
+            'date' => $data['generatedAt']->format('d M Y'), 'tag' => 'HEADCOUNT · LEAVE · CONTRACTS · ATTENDANCE · RECRUITMENT',
+            'metaCells' => [['PREPARED FOR', 'Management', true], ['GENERATED', $data['generatedAt']->format('d M Y, H:i')], ['YEAR', (string) $data['year']]],
+            'filename' => $filename,
+        ]);
+    }
+
+    /**
+     * Any document on the Hypermed letterhead (2026-10-24, user: "every
+     * export should have the standard or derivative of the Hypermed
+     * template used in invoices"): the invoice's navy band, lockup
+     * letterhead, title + number box, details strip, watermark and company
+     * footer around $d['bodyHtml'].
+     *
+     * @param array{title:string,docLabel:string,docNumber:string,date:string,tag:string,
+     *              metaCells:array<array{0:string,1:string,2?:bool}>,bodyHtml:string,
+     *              filename:string,extraCss?:string,signature?:string,download?:bool} $d
+     */
+    public function letterhead(array $d): Response
+    {
+        return $this->render($d + ['generic' => true, 'client' => [], 'currency' => '', 'currencyCode' => '']);
+    }
+
+    /**
+     * A Blade PDF view on the letterhead: renders it with $letterhead = true
+     * (its own header is skipped), keeps its styles minus page/body rules
+     * (the letterhead's fonts and margins win) and its body as the content.
+     */
+    public function fromView(string $view, array $data, array $d): Response
+    {
+        $html = view($view, $data + ['company' => config('company'), 'letterhead' => true])->render();
+        preg_match_all('#<style[^>]*>(.*?)</style>#si', $html, $styles);
+        $css = preg_replace(['#@page\s*\{[^}]*\}#i', '#(^|\})\s*(html\s*,\s*)?body\s*\{[^}]*\}#i'], ['', '$1'], implode("\n", $styles[1]));
+        $body = preg_match('#<body[^>]*>(.*)</body>#si', $html, $m) ? $m[1] : $html;
+
+        return $this->letterhead($d + ['bodyHtml' => "<div style='margin-top:14px'>{$body}</div>", 'extraCss' => $css]);
+    }
+
+    // Section 7: "the plan PDF always reflects the latest version, marks
+    // changed days, and includes the revision history." Takes the model
+    // directly (not a pre-shaped array like hrReportPdf) since there's no
+    // separate report-building step — the plan's own current state and
+    // relations are the whole document.
+    public function perDiemPdf(\App\Models\PerDiemRequest $perDiemRequest, bool $viewerCanSeeFullPayment = false, ?string $filename = null): Response
+    {
+        $perDiemRequest->loadMissing([
+            'user', 'lines', 'reviewer', 'teamLeadReviewer', 'paymentInitiatedBy', 'paidBy',
+            'revisions.editor', 'adjustments.createdBy',
+        ]);
+
+        // Section 15.4/15.5: same layout, order and computed numbers as
+        // the XLSX export and in-app viewer, so the three never disagree.
+        return $this->fromView('pdf.per_diem', [
+            'plan'             => $perDiemRequest,
+            'summary'          => $perDiemRequest->summary(),
+            'signatureBlock'   => app(PerDiemSignatureBlockService::class)->build($perDiemRequest),
+            'canSeeFullPayment' => $viewerCanSeeFullPayment,
+        ], [
+            'title' => 'WORK PLAN', 'docLabel' => 'Travel plan', 'docNumber' => '#' . $perDiemRequest->id,
+            'date' => now()->format('d M Y'), 'tag' => 'TRAVEL PLAN · PER DIEM · ' . strtoupper(str_replace('_', ' ', (string) $perDiemRequest->status)),
+            'metaCells' => [['STAFF MEMBER', $perDiemRequest->user?->name ?? '—', true], ['GENERATED', now()->format('d M Y, H:i')],
+                ['STATUS', ucwords(str_replace('_', ' ', (string) $perDiemRequest->status))]],
+            'filename' => $filename ?? "travel-plan-{$perDiemRequest->id}.pdf",
+        ]);
+    }
+
+    public function payslipPdf(array $data, string $filename): Response
+    {
+        $u = $data['user'];
+
+        return $this->fromView('pdf.payslip', $data, [
+            'title' => 'PAYSLIP', 'docLabel' => 'Period', 'docNumber' => $data['periodLabel'],
+            'date' => $data['paidAt'] ?? now()->format('d M Y'), 'tag' => 'CONFIDENTIAL · ' . strtoupper($data['periodLabel']),
+            'metaCells' => [['EMPLOYEE', $u->name, true], ['POSITION', $u->position?->title ?? '—'], ['PAID', $data['paidAt'] ?? 'Not yet paid']],
+            'filename' => $filename,
+        ]);
+    }
+
+    /** Purchases menu → Print: the purchase order on the letterhead. */
+    /** A unit cost with up to 4 decimals, at least 2 (USD 0.115 → 0.115, 5.75 → 5.75). */
+    private function poUnitCost(float $v): string
+    {
+        $s = number_format($v, 4);
+        $trim = rtrim($s, '0');
+        $dec = strlen(substr(strrchr($trim, '.') ?: '.', 1));
+
+        return number_format($v, max(2, $dec));
+    }
+
+    public function purchaseOrderPdf(\App\Models\PurchaseOrder $po): Response
+    {
+        $po->loadMissing(['supplier', 'location', 'orderedBy', 'items.inventoryItem', 'returns',
+            'salesApprovedBy', 'directorReviewedBy', 'paymentInitiatedBy', 'directorApprovedBy', 'rejectedBy']);
+        $cur = $this->currencyPrefix($po->currency);
+        // Cents show when there are any (USD 12.50); whole shillings stay whole.
+        $n = fn ($v) => number_format((float) $v, fmod((float) $v, 1) != 0.0 || strtoupper((string) $po->currency) !== 'TZS' ? 2 : 0);
+        $rows = '';
+        foreach ($po->items as $i => $it) {
+            $rows .= '<tr><td class=\'dim\'>' . ($i + 1) . '</td><td>' . e($it->inventoryItem?->name ?? '—')
+                . ($it->inventoryItem?->sku ? "<div style='font-size:7.5pt;color:#7a7a7d'>" . e($it->inventoryItem->sku) . '</div>' : '') . '</td>'
+                . "<td class='dim'>" . e($it->inventoryItem?->unit_of_measure ?? '-') . '</td>'
+                . "<td class='num'>" . e($it->quantity_ordered) . "</td><td class='num'>" . e($it->quantity_received) . '</td>'
+                . "<td class='num'>" . e(fmod((float) $it->unit_cost, 1) == 0.0 && strtoupper((string) $po->currency) === 'TZS' ? $n($it->unit_cost) : $this->poUnitCost((float) $it->unit_cost)) . "</td><td class='num'>" . e($n($it->quantity_ordered * $it->unit_cost)) . '</td></tr>';
+        }
+        $returned = (float) $po->returns->sum('total_amount');
+        $due = max(round((float) $po->total_amount - $returned - (float) $po->amount_paid, 2), 0);
+        $totals = "<tr class='muted'><td class='lbl'>Paid</td><td class='val'>{$cur} " . e($n($po->amount_paid)) . '</td></tr>'
+            . ($returned > 0 ? "<tr class='muted'><td class='lbl'>Returned</td><td class='val'>{$cur} " . e($n($returned)) . '</td></tr>' : '')
+            . "<tr class='muted'><td class='lbl'>Payment due</td><td class='val'>{$cur} " . e($n($due)) . '</td></tr>'
+            . "<tr class='grand'><td class='lbl'><span class='grand-lbl'>GRAND TOTAL</span></td><td class='val'><span class='grand-val'>{$cur} " . e($n($po->total_amount)) . '</span></td></tr>';
+        // Supplier contact, so the PDF can be sent to them as the order.
+        $s = $po->supplier;
+        $supplierLines = array_filter([
+            $s?->contact_name, $s?->address, trim(($s?->city ?? '') . ', ' . ($s?->country ?? ''), ', '),
+            implode(' · ', array_filter([$s?->contact_phone, $s?->contact_email])), $s?->tin ? 'TIN ' . $s->tin : null,
+        ]);
+        $info = "<table style='width:100%;margin:2px 0 12px'><tr><td style='width:52%;vertical-align:top;font-size:8.5pt;color:#5d5d60;line-height:1.45'>"
+            . ($supplierLines ? '<strong style=\'color:#2b2b2e\'>Supplier contact</strong><br>' . implode('<br>', array_map('e', $supplierLines)) : '')
+            . "</td><td style='vertical-align:top;font-size:8.5pt;color:#5d5d60;line-height:1.45'>"
+            . '<strong style=\'color:#2b2b2e\'>Order details</strong><br>Currency: ' . e(strtoupper((string) $po->currency))
+            . ($po->expected_delivery_date ? '<br>Expected delivery: ' . e($po->expected_delivery_date->format('d M Y')) : '')
+            . ($s?->payment_terms ? '<br>Payment terms: ' . e(ucwords(str_replace('_', ' ', $s->payment_terms))) : '')
+            . ($po->on_credit ? '<br>On credit (paid against the supplier invoice)' : '')
+            . '</td></tr></table>';
+        $ccy = e(strtoupper((string) $po->currency));
+        $body = $info . "<table id='items'><tr><th style='width:5%'>#</th><th>ITEM</th><th style='width:8%'>UNIT</th><th class='num' style='width:9%'>ORDERED</th><th class='num' style='width:9%'>RECEIVED</th>"
+            . "<th class='num' style='width:14%'>UNIT COST ({$ccy})</th><th class='num' style='width:16%'>TOTAL ({$ccy})</th></tr>{$rows}</table>"
+            . "<table style='width:100%'><tr><td style='width:52%;vertical-align:top;padding-top:14px;font-size:8.5pt;color:#5d5d60'>"
+            . ($po->notes ? nl2br(e($po->notes)) : '') . "</td><td style='vertical-align:top'><table id='totals' style='width:100%'>{$totals}</table></td></tr></table>";
+        // Approval trail: who did each step, and when.
+        $steps = array_filter([
+            ['Prepared', $po->orderedBy?->name, $po->created_at],
+            ['Sales manager approved', $po->salesApprovedBy?->name, $po->sales_approved_at],
+            ['Director reviewed', $po->directorReviewedBy?->name, $po->director_reviewed_at],
+            [$po->on_credit ? 'Put on credit' : 'Payment initiated', $po->paymentInitiatedBy?->name, $po->payment_initiated_at],
+            ['Director final approval', $po->directorApprovedBy?->name, $po->director_approved_at],
+            ['Sent to supplier', null, $po->sent_at],
+            ['Rejected', $po->rejectedBy?->name, $po->rejected_at],
+        ], fn ($st) => $st[1] || $st[2]);
+        if ($steps) {
+            $body .= "<div style='margin-top:16px;font-size:7.5pt;letter-spacing:1px;color:#7a7a7d'>APPROVALS</div><table style='width:100%;font-size:8.5pt;margin-top:4px'>";
+            foreach ($steps as [$what, $who, $when]) {
+                $body .= "<tr><td style='padding:3px 0;width:34%;color:#5d5d60'>" . e($what) . '</td><td style=\'padding:3px 0\'>' . e($who ?? '—') . '</td>'
+                    . "<td style='padding:3px 0;text-align:right;color:#5d5d60'>" . e($when ? \Illuminate\Support\Carbon::parse($when)->format('d M Y H:i') : '') . '</td></tr>';
+            }
+            $body .= '</table>';
+            if ($po->rejection_reason) {
+                $body .= "<div style='font-size:8.5pt;color:#5d5d60;margin-top:4px'><strong>Rejection reason:</strong> " . e($po->rejection_reason) . '</div>';
+            }
+        }
+        $status = ucwords(str_replace('_', ' ', (string) $po->status));
+
+        return $this->letterhead([
+            'title' => 'PURCHASE ORDER', 'docLabel' => 'Purchase', 'docNumber' => $po->po_number,
+            'date' => $po->created_at?->format('d M Y') ?? now()->format('d M Y'),
+            'tag' => 'PURCHASE · ' . strtoupper($status) . ' · ' . strtoupper((string) $po->payment_status),
+            'metaCells' => [['SUPPLIER', $po->supplier?->name ?? '—', true], ['RECEIVE AT', $po->location?->name ?? '—'],
+                ['ADDED BY', $po->orderedBy?->name ?? '—']],
+            'bodyHtml' => $body, 'filename' => "{$po->po_number}.pdf", 'signature' => 'AUTHORISED SIGNATURE',
+        ]);
+    }
+
+    /** Purchase returns → Print: the return note on the letterhead. */
+    public function purchaseReturnPdf(\App\Models\PurchaseReturn $r): Response
+    {
+        $r->loadMissing(['supplier', 'location', 'purchaseOrder', 'createdBy', 'items.inventoryItem']);
+        $cur = $this->currencyPrefix($r->currency);
+        $n = fn ($v) => number_format((float) $v, fmod((float) $v, 1) != 0.0 || strtoupper((string) $r->currency) !== 'TZS' ? 2 : 0);
+        $rows = '';
+        foreach ($r->items as $i => $it) {
+            $rows .= '<tr><td class=\'dim\'>' . ($i + 1) . '</td><td>' . e($it->inventoryItem?->name ?? '—') . '</td>'
+                . "<td class='num'>" . e($it->quantity) . "</td><td class='num'>" . e($n($it->unit_cost)) . "</td><td class='num'>" . e($n($it->total)) . '</td></tr>';
+        }
+        $body = "<table id='items'><tr><th style='width:5%'>#</th><th>ITEM RETURNED</th><th class='num' style='width:10%'>QTY</th>"
+            . "<th class='num' style='width:17%'>UNIT COST</th><th class='num' style='width:18%'>TOTAL</th></tr>{$rows}</table>"
+            . "<table style='width:100%'><tr><td style='width:52%;vertical-align:top;padding-top:14px;font-size:8.5pt;color:#5d5d60'>"
+            . ($r->reason ? '<strong>Reason:</strong> ' . nl2br(e($r->reason)) : '') . "</td><td style='vertical-align:top'><table id='totals' style='width:100%'>"
+            . "<tr class='grand'><td class='lbl'><span class='grand-lbl'>TOTAL RETURNED</span></td><td class='val'><span class='grand-val'>{$cur} " . e($n($r->total_amount)) . '</span></td></tr>'
+            . '</table></td></tr></table>';
+
+        return $this->letterhead([
+            'title' => 'PURCHASE RETURN', 'docLabel' => 'Return', 'docNumber' => $r->return_number,
+            'date' => $r->return_date?->format('d M Y') ?? now()->format('d M Y'),
+            'tag' => 'GOODS RETURNED TO SUPPLIER · ' . ($r->purchaseOrder?->po_number ?? ''),
+            'metaCells' => [['SUPPLIER', $r->supplier?->name ?? '—', true], ['PURCHASE', $r->purchaseOrder?->po_number ?? '—'],
+                ['FROM STORE', $r->location?->name ?? '—']],
+            'bodyHtml' => $body, 'filename' => "{$r->return_number}.pdf", 'signature' => 'RECEIVED BY (SUPPLIER)',
+        ]);
+    }
+
+    // The items table's QTY column is narrow (design-matched to the
+    // prototype's whole-number sample data), so a flat 2-decimal format
+    // wraps onto two lines for common whole quantities — drop trailing
+    // zeros instead of always showing ".00".
+    private function trimmedQuantity(float $qty): string
+    {
+        return rtrim(rtrim(number_format($qty, 2), '0'), '.');
+    }
+
+    private function currencyPrefix(?string $code): string
+    {
+        return $code && $code !== 'TZS' ? $code : 'TSh';
+    }
+
+    private function currencyLabel(?string $code): string
+    {
+        return match ($code) {
+            'USD' => 'USD (US Dollar)',
+            'EUR' => 'EUR (Euro)',
+            'KES' => 'KES (Kenyan Shilling)',
+            default => 'TSh (Tanzanian Shilling)',
+        };
+    }
+
+    /** Payment note + bank columns (left), signature (right). */
+    private function paymentFooter(string $note): string
+    {
+        $lh = config('company.letterhead');
+        $html = "<table id='footrow'><tr><td class='bankcell'>"
+            . "<div class='banknote'>" . e($note) . '</div>'
+            . "<table class='banktable'><tr><td><div class='bankcol-lbl'><strong>ACCOUNT NAME</strong></div><strong>" . e(ucwords(strtolower((string) $lh['name_payee']))) . '</strong></td>';
+        foreach (config('company.banks') as $b) {
+            $html .= "<td><div class='bankcol-lbl'><strong>" . e(strtoupper($b['name'])) . '</strong></div>' . e($b['currency']) . ' &middot; ' . e($b['account']) . '</td>';
+        }
+
+        return $html . '</tr></table></td>'
+            . "<td class='sigcell'><table class='sigline-table'><tr><td class='sigline-cell'>&nbsp;</td></tr>"
+            . "<tr><td class='sigcol-lbl'><strong>AUTHORISED SIGNATURE &amp; STAMP</strong></td></tr></table></td>"
+            . '</tr></table>';
+    }
+
+    /**
+     * Hairline rule with small accent '+' ticks at each end (the reference
+     * design's corner marks, rebuilt as a table — mPDF ignores
+     * position:absolute in flowed content). The '+' cells span two short
+     * rows and the rule is the border between them, so it runs through the
+     * middle of each '+'.
+     */
+    private function plusRule(string $sidePad = '0', string $marginBottom = '0'): string
+    {
+        $plus = "style='width:3mm; padding:0; font-family:dejavusans,sans-serif; font-size:8pt;"
+            . " line-height:1; color:#597ea3; text-align:center; vertical-align:middle;'";
+        $top = 'padding:0; height:1.7mm; font-size:1px; line-height:1px;';
+        $bot = 'padding:0; height:0.9mm; font-size:1px; line-height:1px;';
+
+        return "<div style='padding:0 {$sidePad}; margin-bottom:{$marginBottom};'>"
+            . "<table style='width:100%; border-collapse:collapse;'>"
+            . "<tr><td rowspan='2' {$plus}>+</td>"
+            . "<td style='width:100%; {$top} border-bottom:1px solid #1d1f20;'>&nbsp;</td>"
+            . "<td rowspan='2' {$plus}>+</td></tr>"
+            . "<tr><td style='{$bot}'>&nbsp;</td></tr></table></div>";
+    }
+
+    /**
+     * Quotation / invoice PDF — the "Proforma Invoice v3" design from the
+     * me/system/invoice.php mPDF testbed: slim navy header band, a large
+     * lockup letterhead with the company's full details, '+'-ticked rules,
+     * big condensed title, bordered number box, clean-line items, lockup
+     * watermark and a company-recap footer.
+     *
+     * mPDF gotcha carried over from the testbed: a <div> inside a <td> is
+     * NOT reachable through an ID-scoped descendant selector ('#id .class'
+     * silently no-ops), so table structure is styled via '#id td/th' and
+     * every div's text styling uses a flat, page-unique class.
+     *
+     * @param array{title:string,docLabel:string,docNumber:string,date:string,tag:string,client:array,
+     *              clientAddress?:array,items:array,subtotal:string,discount:string,tax:string,total:string,
+     *              shipping?:string,paid?:?string,balance?:?string,note?:?string,
+     *              currencyCode:string,currency:string,terms:array,filename:string} $d
+     */
+    private function render(array $d): Response
+    {
+        $company = config('company');
+        $lh = $company['letterhead'];
+        $logosDir = resource_path('pdf-assets/logos');
+        $fontsDir = resource_path('pdf-assets/fonts');
+        $condensed = 'barlowcondensed,tildasans,dejavusans,sans-serif';
+
+        // Letterhead facts, all from config('company.letterhead') — the
+        // company's own printed documents. address_lines order:
+        // 0 area, 1 road/plot, 2 building, 3 P.O. Box, 4 city, 5 email,
+        // 6 mobile, 7 tel, 8 website.
+        $a = $lh['address_lines'];
+        $strip = fn ($s) => trim(preg_replace('/^[A-Za-z ]+:\s*/', '', (string) $s));
+        $mobile = preg_replace('/^\+\s+/', '+', $strip($a[6] ?? ''));
+        $tel = preg_replace('/^\+\s+/', '+', $strip($a[7] ?? ''));
+        $email = $strip($a[5] ?? $company['email']);
+        $web = $strip($a[8] ?? 'www.hypermed.co.tz');
+        $tin = 'TIN ' . preg_replace('/\s*-\s*/', '-', $strip($lh['tin']));
+        $shortName = 'HYPERMED HEALTHCARE LTD';
+        $docRef = e($d['title']) . ' ' . e($d['docNumber']);
+        $addr = $lh['display_lines'];
+        $delivery = ! empty($d['delivery']);
+        $statement = ! empty($d['statement']);
+        $generic = ! empty($d['generic']);
+
+        // (A) STYLES
+        $style = "
+        <style>
+          html, body { font-family: tildasans, dejavusans, helvetica, arial, sans-serif; color:#1d1f20; font-size:9.5pt; }
+          #sheet { width:100%; }
+          table { width:100%; border-collapse:collapse; }
+          #body { padding:7mm 12mm 6mm; }
+
+          /* letterhead: big lockup + TIN (left), full company details (right) */
+          #letterhead td { padding:0 0 6mm; }
+          .lh-tin { font-family:{$condensed}; font-weight:700; font-size:18pt; letter-spacing:0.5px; white-space:nowrap; margin-top:2mm; color:#1d1f20; }
+          .lh-name { font-family:{$condensed}; font-weight:700; font-size:21pt; letter-spacing:0.3px; line-height:1.05; color:#1d1f20; }
+          .lh-tag { font-family:{$condensed}; font-weight:700; font-size:9pt; letter-spacing:1.2px; color:#416180; margin-top:2px; }
+          .lh-addr { font-size:9.5pt; line-height:1.6; color:#5d5d60; }
+          .lh-contact { font-size:9.5pt; line-height:1.6; color:#1d1f20; }
+
+          /* title row: big condensed title + bordered number box */
+          #titlerow td { vertical-align:top; padding:0; }
+          .doctitle { font-family:{$condensed}; font-weight:700; font-size:40px; letter-spacing:-1px; line-height:1; margin-top:2px; color:#1d1f20; }
+          #tag { border:1px solid #597ea3; width:auto; margin-top:10px; }
+          #tag td { padding:8px; color:#416180; font-weight:700; font-size:7.5pt; letter-spacing:0.8px; white-space:nowrap; }
+          #invbox { border:1px solid #1d1f20; width:165px; }
+          #invbox td { padding:12px 14px; }
+          .invbox-lbl { font-weight:700; font-size:7pt; letter-spacing:1px; color:#416180; }
+          .invbox-num { font-family:{$condensed}; font-weight:700; font-size:16pt; margin-top:3px; white-space:nowrap; color:#1d1f20; }
+
+          /* meta strip: Billed To / Date / Currency */
+          #meta { margin-top:22px; border-top:1px solid #1d1f20; border-bottom:1px solid #ccc; }
+          #meta td { vertical-align:top; padding:12px 10px 12px 0; font-size:9pt; }
+          .meta-lbl { font-weight:700; font-size:7pt; letter-spacing:1px; color:#416180; margin-bottom:4px; }
+          .meta-bigval { font-family:{$condensed}; font-weight:700; font-size:15pt; }
+          .meta-val { font-size:10.5pt; white-space:nowrap; }
+
+          /* items: clean-line rows */
+          #items { margin-top:20px; }
+          #items th { text-align:left; font-size:7pt; font-weight:700; letter-spacing:0.5px; padding:8px; background:#e7e7ea; border-bottom:1px solid #1d1f20; white-space:nowrap; }
+          #items td { padding:9px 8px; font-size:9pt; border-bottom:1px solid #ddd; vertical-align:top; }
+          #items th.num, #items td.num { text-align:right; }
+          #items td.dim { color:#7a7a7d; white-space:nowrap; }
+
+          #totals { width:48%; margin-top:14px; }
+          #totals td { padding:6px 0; font-size:9.5pt; white-space:nowrap; border-bottom:1px solid #ddd; }
+          #totals td.lbl { text-align:left; }
+          #totals td.val { text-align:right; }
+          #totals tr.muted td { color:#5d5d60; }
+          #totals tr.grand td { border-bottom:none; border-top:2px solid #1d1f20; padding-top:9px; vertical-align:bottom; }
+          .grand-lbl { font-weight:700; font-size:7pt; letter-spacing:1px; color:#1d1f20; }
+          .grand-val { font-family:{$condensed}; font-weight:700; font-size:19pt; white-space:nowrap; }
+          .bal-val { font-family:{$condensed}; font-weight:700; font-size:15pt; white-space:nowrap; color:#b45309; }
+
+          /* statement ledger: the items look, tighter rows */
+          #ledger { margin-top:16px; }
+          #ledger th { text-align:left; font-size:7pt; font-weight:700; letter-spacing:0.5px; padding:7px 6px; background:#e7e7ea; border-bottom:1px solid #1d1f20; white-space:nowrap; }
+          #ledger td { padding:6px; font-size:8.5pt; border-bottom:1px solid #ddd; vertical-align:top; }
+          #ledger th.num, #ledger td.num { text-align:right; white-space:nowrap; }
+          #ledger td.dim { color:#7a7a7d; white-space:nowrap; }
+
+          /* statement summary / ageing strip */
+          #sumstrip { margin-top:16px; border-bottom:1px solid #ccc; }
+          #sumstrip td { vertical-align:top; padding:8px 10px 10px 0; }
+          .sum-val { font-family:{$condensed}; font-weight:700; font-size:13pt; white-space:nowrap; }
+          .age-val { font-family:{$condensed}; font-weight:700; font-size:11pt; white-space:nowrap; }
+
+          #terms { margin-top:30px; }
+          .terms-h { font-weight:700; font-size:7pt; letter-spacing:1px; color:#416180; padding-bottom:6px; border-bottom:1px solid #1d1f20; }
+          #termsrow td { vertical-align:top; padding:10px 14px 0 0; font-size:8.5pt; line-height:1.5; color:#5d5d60; }
+          .terms-t { font-family:{$condensed}; font-weight:700; font-size:9.5pt; margin-bottom:2px; color:#1d1f20; }
+
+          /* payment note + bank columns (left), signature (right), both bottom-aligned */
+          #footrow { margin-top:24px; }
+          #footrow td { padding:0; font-size:8.5pt; }
+          .bankcell { width:64%; vertical-align:bottom; padding-right:22px; }
+          .banknote { font-size:8pt; color:#7a7a7d; }
+          .banktable { margin-top:10px; border-top:1px solid #ccc; width:100%; }
+          .banktable td { vertical-align:top; padding:9px 16px 0 0; font-size:8.5pt; line-height:1.5; white-space:nowrap; }
+          .bankcol-lbl { font-weight:700; font-size:7pt; letter-spacing:1px; color:#416180; }
+          .sigcell { width:36%; vertical-align:bottom; }
+          .sigline-table { width:100%; border-collapse:collapse; }
+          .sigline-table td.sigline-cell { border-bottom:1px solid #1d1f20; padding:40px 0 0; font-size:1px; line-height:1px; }
+          .sigline-table td.sigcol-lbl { padding:5px 0 0; font-weight:700; font-size:7pt; letter-spacing:1px; color:#416180; white-space:nowrap; }
+        </style>" . (! empty($d['extraCss']) ? '<style>' . $d['extraCss'] . '</style>' : '');
+
+        // (B) HEADER — slim navy band, repeats on every page.
+        $headerHtml = "<table style='width:100%; border-collapse:collapse; background:#1d2d3d;'><tr>"
+            . "<td style='width:12mm; padding:7px 0 7px 12mm; vertical-align:middle;'><img src='{$logosDir}/hypermed_icon.png' height='22' width='auto'/></td>"
+            . "<td style='padding:7px 0 7px 8px; vertical-align:middle; font-family:{$condensed}; font-weight:700; font-size:11.5pt; letter-spacing:0.5px; color:#f2f2f3;'><strong>{$shortName}</strong></td>"
+            . "<td style='padding:7px 12mm 7px 0; text-align:right; vertical-align:middle; white-space:nowrap; font-family:tildasans,dejavusans,sans-serif; font-weight:700; font-size:7.5pt; letter-spacing:1.2px; color:#b5d9fd;'><strong>{$docRef}</strong></td>"
+            . '</tr></table>';
+
+        // (C) FOOTER — company recap, repeats on every page.
+        $footerHtml = $this->plusRule('12mm');
+        $footerHtml .= "<table style='width:100%; border-collapse:collapse; font-family:tildasans,dejavusans,sans-serif; font-size:8pt; color:#5d5d60;'><tr>";
+        $footerHtml .= "<td style='width:29%; border-right:1px solid #ccc; padding:5px 14px 0 12mm; vertical-align:top;'>"
+            . "<table style='width:100%; border-collapse:collapse;'><tr>"
+            . "<td style='width:26px; vertical-align:top; padding:0;'><img src='{$logosDir}/hypermed_icon.png' height='18' width='auto'/></td>"
+            . "<td style='vertical-align:top; padding:0 0 0 6px;'><div style='font-family:{$condensed}; font-weight:700; font-size:9pt; letter-spacing:0.4px; color:#1d1f20; white-space:nowrap;'><strong>{$shortName}</strong></div>"
+            . '<div>' . e($tin) . '</div></td></tr></table></td>';
+        $footerHtml .= "<td style='width:40%; border-right:1px solid #ccc; padding:5px 14px 0; white-space:nowrap; vertical-align:top; line-height:1.5;'>"
+            . e($addr[0]) . ' &middot; ' . e(explode(' · ', $addr[1])[0]) . '<br>'
+            . 'Kinondoni, ' . e($addr[2]) . '</td>';
+        $footerHtml .= "<td style='width:31%; text-align:right; vertical-align:top; padding:5px 12mm 0 14px; line-height:1.5; white-space:nowrap;'>"
+            . "<div style='font-weight:700; font-size:7pt; letter-spacing:1.2px; color:#416180;'><strong>{$docRef}</strong></div>"
+            . '<div>' . e($d['date']) . ' &middot; ' . e($web) . '</div></td>';
+        $footerHtml .= '</tr></table>';
+
+        // (D) BODY
+        $html = "<!DOCTYPE html><html><head>{$style}</head><body><div id='sheet'><div id='body'>";
+
+        // Letterhead — bigger than the testbed's, with the full legal name,
+        // tagline, complete address and every contact channel.
+        $html .= "<table id='letterhead'><tr>";
+        $html .= "<td style='width:38%; vertical-align:middle;'>"
+            . "<img src='{$logosDir}/hypermed_lockup.png' height='128' width='auto'/>"
+            . "<div class='lh-tin'><strong>" . e($tin) . '</strong></div></td>';
+        $html .= "<td style='width:62%; vertical-align:middle; text-align:right;'>"
+            . "<div class='lh-name'><strong>" . e($lh['name_header']) . '</strong></div>'
+            . "<div class='lh-tag'><strong>" . e(strtoupper($company['tagline'] ?? '')) . '</strong></div>'
+            . "<div class='lh-addr' style='margin-top:6px'>" . implode('<br>', array_map(fn ($l) => str_replace(' · ', ' &middot; ', e($l)), $addr)) . '</div>'
+            . "<div class='lh-contact' style='margin-top:6px'>Mob " . e($mobile) . ' &middot; Tel ' . e($tel) . '<br>'
+            . e($email) . ' &middot; ' . e($web) . '</div></td>';
+        $html .= '</tr></table>';
+        $html .= $this->plusRule('0', '7mm');
+
+        // title row
+        $html .= "<table id='titlerow'><tr><td style='width:60%'>"
+            . "<div class='doctitle'><strong>" . e($d['title']) . '</strong></div>'
+            . (($d['tag'] ?? '') !== '' ? "<table id='tag'><tr><td><strong>" . e($d['tag']) . '</strong></td></tr></table>' : '') . '</td>'
+            . "<td style='width:40%; text-align:right'><table id='invbox' style='margin-left:auto; text-align:left'><tr><td>"
+            . "<div class='invbox-lbl'><strong>" . e(strtoupper(rtrim($d['docLabel'], ':')) . '.') . '</strong></div>'
+            . "<div class='invbox-num'><strong>" . e($d['docNumber']) . '</strong></div>'
+            . '</td></tr></table></td></tr></table>';
+
+        // meta strip — client name, contact line, then address/TIN lines
+        $client = $d['client'];
+        $clientName = array_shift($client) ?? '—';
+        $tinLines = array_values(array_filter($client, fn ($l) => str_starts_with((string) $l, 'TIN')));
+        $contact = array_values(array_diff($client, $tinLines));
+        $addressLines = array_merge($d['clientAddress'] ?? [], $tinLines);
+        if ($generic) {
+            // Generic letterhead documents: their own details strip.
+            $cells = $d['metaCells'] ?? [];
+            // A letter has no details strip (its own Ref/date/recipient block).
+            $html .= $cells ? "<table id='meta'><tr>" : '<table style=\'display:none\'><tr><td></td>';
+            foreach ($cells as $i => $cell) {
+                $w = $i === 0 ? 42 : round(58 / max(1, count($cells) - 1));
+                $html .= "<td style='width:{$w}%'><div class='meta-lbl'><strong>" . e($cell[0]) . '</strong></div><br>'
+                    . (! empty($cell[2]) ? "<div class='meta-bigval'><strong>" . e($cell[1]) . '</strong></div>' : "<div class='meta-val'>" . e($cell[1]) . '</div>')
+                    . '</td>';
+            }
+            $html .= '</tr></table>';
+        } else {
+        $html .= "<table id='meta'><tr><td style='width:42%'>"
+            . "<div class='meta-lbl'><strong>" . ($delivery ? 'DELIVER TO' : ($statement ? 'STATEMENT FOR' : 'BILLED TO')) . "</strong></div><br>"
+            . "<div class='meta-bigval'><strong>" . e($clientName) . '</strong></div>'
+            . ($contact ? "<div style='margin-top:2px'>" . e(implode(' · ', $contact)) . '</div>' : '')
+            . ($addressLines ? "<div style='margin-top:4px; font-size:8.5pt; line-height:1.5; color:#5d5d60;'>" . implode('<br>', array_map('e', $addressLines)) . '</div>' : '')
+            . '</td>'
+            . "<td style='width:29%'><div class='meta-lbl'><strong>DATE ISSUED</strong></div><br><div class='meta-val'>" . e($d['date']) . '</div></td>'
+            . ($delivery
+                ? "<td style='width:29%'><div class='meta-lbl'><strong>INVOICE NO.</strong></div><br><div class='meta-val'>" . e($d['invoiceNumber']) . '</div></td>'
+                : '')
+            . ($statement
+                ? "<td style='width:29%'><div class='meta-lbl'><strong>PERIOD</strong></div><br><div class='meta-val'>" . e($d['period']) . '</div></td>'
+                : '')
+            . ($delivery || $statement
+                ? ''
+                : "<td style='width:29%'><div class='meta-lbl'><strong>CURRENCY</strong></div><br><div class='meta-val'>" . e($d['currency']) . '</div></td>')
+            . '</tr></table>';
+        }
+
+        if ($generic) {
+            $html .= $d['bodyHtml'];
+            if (! empty($d['signature'])) {
+                $html .= "<table id='footrow'><tr><td class='bankcell'>&nbsp;</td><td class='sigcell'><table class='sigline-table'>"
+                    . "<tr><td class='sigline-cell'>&nbsp;</td></tr><tr><td class='sigcol-lbl'><strong>" . e($d['signature']) . '</strong></td></tr></table></td></tr></table>';
+            }
+        } elseif ($delivery) {
+            $html .= $this->deliveryNoteBody($d);
+        } elseif (! empty($d['creditorStatement'])) {
+            $html .= $this->creditorStatementBody($d);
+        } elseif ($statement) {
+            $html .= $this->statementBody($d)
+                . $this->paymentFooter('Please pay the balance due directly to the accounts below, quoting the invoice numbers. Contact us if this statement does not match your records.');
+        } else {
+            // items — clean-line rows
+            // A DISC. column only when some line is discounted; LOT/EXP give it room.
+            $hasDisc = collect($d['items'])->contains(fn ($i) => ($i[8] ?? 0) > 0);
+            $html .= "<table id='items'><tr>
+                <th style='width:6%'>#</th><th style='white-space:normal'>DESCRIPTION</th>
+                <th style='width:" . ($hasDisc ? 8 : 11) . "%'>LOT</th><th style='width:" . ($hasDisc ? 9 : 12) . "%'>EXP.</th><th style='width:7%'>UOM</th>
+                <th class='num' style='width:6%'>QTY</th><th class='num' style='width:13%'>UNIT PRICE</th>"
+                . ($hasDisc ? "<th class='num' style='width:11%'>DISC.</th>" : '')
+                . "<th class='num' style='width:13%'>AMOUNT</th></tr>";
+            foreach ($d['items'] as $i) {
+                $html .= '<tr><td class="dim">' . e($i[0]) . '</td><td style="font-weight:500">' . e($i[1]) . '</td>'
+                    . '<td class="dim">' . e($i[2]) . '</td><td class="dim">' . e($i[3]) . '</td><td>' . e($i[4]) . '</td>'
+                    . '<td class="num">' . e($i[5]) . '</td><td class="num">' . e($i[6]) . '</td>'
+                    . ($hasDisc ? '<td class="num">' . (($i[8] ?? 0) > 0 ? e(number_format($i[8], 2)) : '-') . '</td>' : '')
+                    . '<td class="num" style="font-weight:700">' . e($i[7]) . '</td></tr>';
+            }
+            $html .= '</table>';
+
+            // totals
+            $cc = e($d['currencyCode']);
+            $row = fn ($label, $value, $class = '') => "<tr class='{$class}'><td class='lbl'>{$label}</td><td class='val'>{$cc} " . e($value) . '</td></tr>';
+            $html .= "<table id='totals' align='right'>";
+            $html .= $row('Subtotal', $d['subtotal']);
+            $html .= $row('Discount', $d['discount'], 'muted');
+            if ($d['tax'] !== '0.00') {
+                $html .= $row('VAT', $d['tax']);
+            }
+            if (($d['shipping'] ?? '0.00') !== '0.00') {
+                $html .= $row('Delivery / transport', $d['shipping']);
+            }
+            $html .= "<tr class='grand'><td class='lbl'><div class='grand-lbl'><strong>TOTAL DUE</strong></div></td>"
+                . "<td class='val'><div class='grand-val'><strong>{$cc} " . e($d['total']) . '</strong></div></td></tr>';
+            if (! empty($d['paid'])) {
+                $html .= $row('Paid to date', $d['paid'], 'muted');
+                $html .= "<tr class='grand'><td class='lbl'><div class='grand-lbl'><strong>BALANCE</strong></div></td>"
+                    . "<td class='val'><div class='bal-val'><strong>{$cc} " . e($d['balance']) . '</strong></div></td></tr>';
+            }
+            $html .= '</table>';
+
+            // sell note (invoices), then terms
+            if (! empty($d['note'])) {
+                $html .= "<div id='terms'><div class='terms-h'><strong>NOTE</strong></div>"
+                    . "<div style='padding-top:10px;font-size:8.5pt;line-height:1.5;color:#5d5d60'>" . nl2br(e($d['note'])) . '</div></div>';
+            }
+            $html .= "<div id='terms'><div class='terms-h'><strong>TERMS &amp; CONDITIONS</strong></div><table id='termsrow'><tr>";
+            foreach ($d['terms'] as $t) {
+                $html .= "<td style='width:" . round(100 / max(1, count($d['terms']))) . "%'>"
+                    . "<div class='terms-t'><strong>" . e($t['label']) . '</strong></div><div>' . e($t['text']) . '</div></td>';
+            }
+            $html .= '</tr></table></div>';
+
+            $html .= $this->paymentFooter('Prices exclude any charge not stated on this document. Payments should be made directly to the accounts below.');
+        }
+
+        $html .= '</div></div></body></html>';
+
+        // (E) RENDER — TildaSans + Barlow Condensed as custom mPDF fonts
+        // (keys must be lowercase: mPDF lowercases the CSS family name).
+        $defaultFontDirs = (new \Mpdf\Config\ConfigVariables())->getDefaults()['fontDir'];
+        $defaultFontData = (new \Mpdf\Config\FontVariables())->getDefaults()['fontdata'];
+
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'margin_top' => 11,
+            'margin_bottom' => 24,
+            'margin_header' => 0,
+            'margin_footer' => 7,
+            'margin_left' => 0,
+            'margin_right' => 0,
+            'tempDir' => storage_path('app/mpdf-tmp'),
+            'fontDir' => array_merge($defaultFontDirs, [$fontsDir]),
+            'fontdata' => $defaultFontData + [
+                'tildasans' => ['R' => 'TildaSans.ttf'],
+                'barlowcondensed' => [
+                    'R' => 'BarlowCondensed-Regular.ttf',
+                    'B' => 'BarlowCondensed-Bold.ttf',
+                    'I' => 'BarlowCondensed-Italic.ttf',
+                    'BI' => 'BarlowCondensed-BoldItalic.ttf',
+                ],
+            ],
+        ]);
+
+        // Faint full-lockup watermark behind the items, as in the v3 design.
+        $mpdf->SetWatermarkImage("{$logosDir}/hypermed_lockup.png", 0.09, [153, 102], [28.5, 98]);
+        $mpdf->showWatermarkImage = true;
+
+        $mpdf->SetHTMLHeader($headerHtml);
+        $mpdf->SetHTMLFooter($footerHtml);
+        $mpdf->WriteHTML($html);
+
+        return response($mpdf->Output($d['filename'], \Mpdf\Output\Destination::STRING_RETURN), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => (! empty($d['download']) ? 'attachment' : 'inline') . '; filename="' . $d['filename'] . '"',
+        ]);
+    }
+}

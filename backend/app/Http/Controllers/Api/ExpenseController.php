@@ -1,0 +1,520 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Services\Approvals\FastTrackService;
+use App\Support\DirectorFastTrack;
+use App\Http\Controllers\Api\Concerns\FiltersByPeriod;
+use App\Http\Controllers\Controller;
+use App\Http\Resources\ExpenseResource;
+use App\Models\AppNotification;
+use App\Models\ApprovalLog;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
+use App\Models\User;
+use App\Services\ExpenseApprovalService;
+use App\Services\ExpenseService;
+use App\Services\FinancePostingService;
+use App\Services\NotificationTemplateService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class ExpenseController extends Controller
+{
+    use FiltersByPeriod;
+
+    // Expense read endpoints had no gate at all — any of the 15 roles could
+    // list/view every expense record. Reuses screens.finance, the same
+    // permission that governs the Finance module's other read screens (see
+    // FinanceReportController, AccountingController, VendorBillController,
+    // BankReconciliationController).
+    private function assertFinanceReadAccess(): void
+    {
+        abort_if(
+            ! app(\App\Services\EffectivePermissionResolver::class)->can(\Illuminate\Support\Facades\Auth::user(), 'screens.finance'),
+            403,
+            'You are not authorised to view finance data.'
+        );
+    }
+
+    // No self-approval for anyone, at any stage of the chain (spec Section 1)
+    // — mirrors PerDiemController::abortIfSelfActioning().
+    private function abortIfSelfActioning(Expense $expense, Request $request): void
+    {
+        abort_if(! DirectorFastTrack::active() && $expense->created_by === $request->user()->id, 403,
+            'You cannot action your own expense submission.');
+    }
+
+    private function canReadAll(): bool
+    {
+        return app(\App\Services\EffectivePermissionResolver::class)->can(\Illuminate\Support\Facades\Auth::user(), 'screens.finance');
+    }
+
+    /** Finance sees every expense; anyone else their own and those waiting on them as manager. */
+    private function assertCanView(Expense $expense): void
+    {
+        $uid = \Illuminate\Support\Facades\Auth::id();
+        if ($expense->created_by === $uid || $expense->approver_id === $uid) {
+            return;
+        }
+        $this->assertFinanceReadAccess();
+    }
+
+    /** The submitter's line manager acts at pending_manager — or the Director over them. */
+    private function abortUnlessManagerStage(Expense $expense, User $user): void
+    {
+        abort_if($expense->approver_id !== $user->id && ! $user->hasFinalMoneyAuthority(), 403,
+            'Only the submitter\'s manager can review this expense.');
+    }
+
+    private function categoryPayload(ExpenseCategory $c): array
+    {
+        return [
+            'id' => $c->id, 'name' => $c->name, 'account_id' => $c->account_id,
+            'account_code' => $c->account?->code, 'account_name' => $c->account?->name,
+            'parent_id' => $c->parent_id, 'parent_name' => $c->parent?->name,
+            'requires_director_approval' => $c->requires_director_approval,
+        ];
+    }
+
+    public function categories()
+    {
+        $categories = ExpenseCategory::with(['account:id,code,name', 'parent:id,name'])->orderBy('name')->get();
+        return response()->json(['data' => $categories->map(fn ($c) => $this->categoryPayload($c))]);
+    }
+
+    // A subcategory always posts to its parent's GL account — parent_id is
+    // purely a reporting tree, not a second ledger dimension, so the chart
+    // of accounts doesn't grow one line per subcategory.
+    public function storeCategory(Request $request)
+    {
+        abort_if(! $request->user()->hasFinanceApprovalAuthority(), 403, 'You are not authorised to manage expense categories.');
+
+        $data = $request->validate([
+            'name'       => ['required', 'string', 'max:150'],
+            'account_id' => ['required_without:parent_id', 'nullable', 'exists:chart_of_accounts,id'],
+            'parent_id'  => ['nullable', 'exists:expense_categories,id'],
+        ]);
+
+        $accountId = $data['account_id'] ?? null;
+        if (empty($accountId) && ! empty($data['parent_id'])) {
+            $accountId = ExpenseCategory::findOrFail($data['parent_id'])->account_id;
+        }
+
+        $category = ExpenseCategory::create([
+            'name'       => $data['name'],
+            'account_id' => $accountId,
+            'parent_id'  => $data['parent_id'] ?? null,
+        ]);
+
+        return response()->json(['data' => $this->categoryPayload($category->load(['account', 'parent']))], 201);
+    }
+
+    public function updateCategory(Request $request, ExpenseCategory $expenseCategory)
+    {
+        if ($request->has('requires_director_approval') && count($request->all()) === 1) {
+            abort_if(! $request->user()->hasFinalMoneyAuthority(), 403, 'Only the Director can change approval routing.');
+            $expenseCategory->update($request->validate(['requires_director_approval' => ['required', 'boolean']]));
+            return response()->json(['data' => $this->categoryPayload($expenseCategory->load(['account', 'parent']))]);
+        }
+
+        abort_if(! $request->user()->hasFinanceApprovalAuthority(), 403, 'You are not authorised to manage expense categories.');
+
+        $data = $request->validate([
+            'name'                       => ['sometimes', 'string', 'max:150'],
+            'account_id'                 => ['sometimes', 'exists:chart_of_accounts,id'],
+            'parent_id'                  => ['sometimes', 'nullable', 'exists:expense_categories,id'],
+            'requires_director_approval' => ['sometimes', 'boolean'],
+        ]);
+
+        abort_if(($data['parent_id'] ?? null) === $expenseCategory->id, 422, 'A category cannot be its own parent.');
+
+        $expenseCategory->update($data);
+
+        return response()->json(['data' => $this->categoryPayload($expenseCategory->load(['account', 'parent']))]);
+    }
+
+    public function destroyCategory(Request $request, ExpenseCategory $expenseCategory)
+    {
+        abort_if(! $request->user()->hasFinanceApprovalAuthority(), 403, 'You are not authorised to manage expense categories.');
+        abort_if($expenseCategory->expenses()->exists(), 422, 'Expenses are recorded against this category — reassign them first.');
+        abort_if($expenseCategory->children()->exists(), 422, 'This category has subcategories — delete or reassign them first.');
+
+        $expenseCategory->delete();
+
+        return response()->noContent();
+    }
+
+    public function index(Request $request)
+    {
+        $uid = $request->user()->id;
+        $query = Expense::with(['category', 'createdBy', 'reviewer', 'approver']);
+        // My Expenses (?mine=1), or anyone without Finance: their own plus
+        // the ones waiting on them as line manager (2026-10-24).
+        if ($request->boolean('mine')) {
+            $query->where('created_by', $uid);
+        } elseif (! $this->canReadAll()) {
+            $query->where(fn ($q) => $q->where('created_by', $uid)->orWhere('approver_id', $uid));
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('payment_mode')) {
+            $query->where('payment_mode', $request->payment_mode);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        // Approvals queue: only what still waits on someone, from any date —
+        // Finance reads every expense, so filtering page 1 client-side lost
+        // pending ones behind already-paid ones (2026-10-26).
+        if ($request->boolean('pending')) {
+            $query->whereIn('status', ['pending_manager', 'pending_cto', 'pending_director', 'pending_payment', 'pending_release']);
+        } else {
+            $this->applyPeriod($query, $request, 'expense_date');
+        }
+        if ($request->filled('search')) {
+            $query->where('name', 'like', "%{$request->search}%");
+        }
+
+        return ExpenseResource::collection($query->latest('expense_date')->paginate($this->perPage($request, 50)));
+    }
+
+    public function store(Request $request, ExpenseService $expenseService)
+    {
+        $data = $request->validate([
+            'name'         => ['required', 'string', 'max:255'],
+            'category_id'  => ['required', 'exists:expense_categories,id'],
+            'amount'       => ['required', 'integer', 'min:1'],
+            'tax_rate'     => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'payment_mode' => ['required', 'in:cash,bank,mobile_money'],
+            'expense_date' => ['required', 'date'],
+            'reference'    => ['nullable', 'string', 'max:255'],
+            'notes'        => ['nullable', 'string'],
+            'is_recurring'         => ['sometimes', 'boolean'],
+            'recur_interval'       => ['required_if:is_recurring,true', 'nullable', 'integer', 'min:1', 'max:99'],
+            'recur_interval_type'  => ['required_if:is_recurring,true', 'nullable', 'in:days,months,years'],
+            'recur_repeat_on'      => ['nullable', 'integer', 'min:1', 'max:28'],
+            'recur_repetitions'    => ['nullable', 'integer', 'min:1'],
+        ]);
+        $data['created_by'] = $request->user()->id;
+
+        $expense = $expenseService->create($data);
+        $expense = app(FastTrackService::class)->approveOwn('expense', $expense, $request->user());
+
+        return response()->json(['data' => new ExpenseResource($expense->load(['category', 'createdBy']))], 201);
+    }
+
+    public function show(Expense $expense)
+    {
+        $this->assertCanView($expense);
+
+        return response()->json(['data' => new ExpenseResource($expense->load(['category', 'createdBy', 'escalator', 'reviewer', 'approver']))]);
+    }
+
+    public function update(Request $request, Expense $expense, ExpenseApprovalService $approvalService, ExpenseService $expenseService)
+    {
+        abort_if(
+            in_array($expense->status, ['pending_payment', 'pending_release', 'paid'], true),
+            422,
+            'Approved expenses cannot be edited — void and recreate if a correction is needed.'
+        );
+
+        $user = $request->user();
+        abort_if($expense->created_by !== $user->id && ! $user->hasCtoApprovalAuthority(), 403, 'Not authorised.');
+
+        $data = $request->validate([
+            'name'         => ['sometimes', 'string', 'max:255'],
+            'category_id'  => ['sometimes', 'exists:expense_categories,id'],
+            'amount'       => ['sometimes', 'integer', 'min:1'],
+            'tax_rate'     => ['sometimes', 'numeric', 'min:0', 'max:100'],
+            'payment_mode' => ['sometimes', 'in:cash,bank,mobile_money'],
+            'expense_date' => ['sometimes', 'date'],
+            'reference'    => ['nullable', 'string', 'max:255'],
+            'notes'        => ['nullable', 'string'],
+        ]);
+
+        $newAmount  = $data['amount']   ?? $expense->amount;
+        $newTaxRate = $data['tax_rate'] ?? $expense->tax_rate;
+        $data['tax_rate']   = $newTaxRate;
+        $data['tax_amount'] = (int) round($newAmount * $newTaxRate / 100);
+
+        $category = ExpenseCategory::findOrFail($data['category_id'] ?? $expense->category_id);
+        $evaluation = $approvalService->evaluate($category, $newAmount + $data['tax_amount']);
+        $data['requires_director_approval'] = $evaluation['requires_director_approval'];
+        $data['escalation_reason']          = $evaluation['escalation_reason'];
+        // An edit sends it back to the start of the chain.
+        $data = $expenseService->route($expense->created_by, $evaluation['requires_director_approval']) + $data;
+
+        $expense->update($data);
+
+        return response()->json(['data' => new ExpenseResource($expense->fresh()->load(['category', 'createdBy']))]);
+    }
+
+    // Stops future auto-generation from this recurring template — does not
+    // touch expenses already generated from it (see GenerateRecurringExpenses).
+    public function stopRecurring(Request $request, Expense $expense)
+    {
+        abort_if(! $expense->is_recurring, 422, 'This expense is not a recurring template.');
+
+        $user = $request->user();
+        abort_if($expense->created_by !== $user->id && ! $user->hasCtoApprovalAuthority(), 403, 'Not authorised.');
+
+        $expense->update(['recur_stopped_on' => now()->toDateString()]);
+
+        return response()->json(['data' => new ExpenseResource($expense->fresh()->load(['category', 'createdBy']))]);
+    }
+
+    public function destroy(Request $request, Expense $expense, FinancePostingService $financePosting)
+    {
+        $user = $request->user();
+
+        if ($expense->status === 'paid') {
+            abort_if(! $user->hasFinalMoneyAuthority(), 403, 'Only the Director can delete a paid expense.');
+            DB::transaction(function () use ($expense, $financePosting) {
+                $financePosting->reverseExpense($expense);
+                $expense->delete();
+            });
+        } elseif (in_array($expense->status, ['pending_payment', 'pending_release'], true)) {
+            // Approved but no ledger entry posted yet — still Director-only,
+            // since it's already past the approval gate.
+            abort_if(! $user->hasFinalMoneyAuthority(), 403, 'Only the Director can delete an approved expense.');
+            $expense->delete();
+        } else {
+            abort_if($expense->created_by !== $user->id && ! $user->hasCtoApprovalAuthority(), 403, 'Not authorised.');
+            $expense->delete();
+        }
+
+        return response()->json(null, 204);
+    }
+
+    // Approving no longer posts to the ledger — it hands off to the
+    // accountant-initiates / accountant-or-director-releases pair below
+    // (initiatePayment()/markPaid()), same segregation-of-duty split as
+    // Per-Diem/PO/Vendor Bills. The ledger entry now happens in markPaid(),
+    // against actual cash movement rather than mere sign-off.
+    public function approve(Request $request, Expense $expense)
+    {
+        $user = $request->user();
+
+        if ($expense->status === 'pending_manager') {
+            $this->abortUnlessManagerStage($expense, $user);
+            $this->abortIfSelfActioning($expense, $request);
+            // A team leader only filters (2026-10-24: "Yusuph only acts as a
+            // filter for any unnecessary requests"): passing it sends it to
+            // their own manager (Sharif), whose approval is the real one.
+            $filter = $expense->approver;
+            if ($filter && $filter->id === $user->id && $filter->role === 'team_leader' && ! $user->hasFinalMoneyAuthority()) {
+                $next = $filter->manager_id ? User::where('is_active', true)->find($filter->manager_id) : null;
+                if ($next && $next->id !== $expense->created_by) {
+                    $expense->update($next->isDirector()
+                        ? ['status' => 'pending_director', 'approver_id' => $next->id]
+                        : ['approver_id' => $next->id]);
+                    ApprovalLog::record($expense, 'approved', $user, "Passed by {$user->name} (team leader) — on to {$next->name}.");
+                    app(ExpenseService::class)->notifyApprover($expense->fresh());
+
+                    return response()->json(['data' => new ExpenseResource($expense->fresh()->load(['category', 'createdBy', 'approver']))]);
+                }
+            }
+            // Director-only category or over the safety net: the manager's
+            // yes sends it on to the Director rather than to Finance.
+            if ($expense->requires_director_approval && ! $user->hasFinalMoneyAuthority()) {
+                $expense->update([
+                    'status' => 'pending_director', 'escalated_by' => $user->id, 'escalated_at' => now(),
+                    'escalation_reason' => $expense->escalation_reason ?? 'Requires Director approval.',
+                ]);
+                ApprovalLog::record($expense, 'approved', $user, 'Manager approved — on to the Director.');
+                $this->notifyDirector($expense);
+
+                return response()->json(['data' => new ExpenseResource($expense->fresh()->load(['category', 'createdBy', 'escalator', 'approver']))]);
+            }
+        } elseif ($expense->status === 'pending_cto') {
+            abort_if(! $user->hasCtoApprovalAuthority(), 403, 'You are not authorised to approve expenses.');
+            abort_if($expense->requires_director_approval, 422, 'This expense requires Director approval — escalate it instead.');
+        } elseif ($expense->status === 'pending_director') {
+            abort_if(! $user->hasFinalMoneyAuthority(), 403, 'Only the Director can approve this expense.');
+        } else {
+            abort(422, 'Only pending expenses can be approved.');
+        }
+        $this->abortIfSelfActioning($expense, $request);
+
+        $expense->update(['status' => 'pending_payment', 'reviewed_by' => $user->id, 'reviewed_at' => now()]);
+        ApprovalLog::record($expense, 'approved', $user);
+
+        $this->notifyRequester($expense, approved: true);
+        $this->notifyFinance($expense);
+
+        return response()->json(['data' => new ExpenseResource($expense->fresh()->load(['category', 'createdBy', 'reviewer']))]);
+    }
+
+    // Accountant records how the expense will be paid — doesn't move money
+    // on their own authority (mirrors PerDiemController::initiatePayment()).
+    public function initiatePayment(Request $request, Expense $expense)
+    {
+        abort_if(! $request->user()->hasAccountantAuthority(), 403, 'You are not authorised to initiate payment on expenses.');
+        $this->abortIfSelfActioning($expense, $request);
+        abort_if($expense->status !== 'pending_payment', 422, 'Only approved expenses awaiting payment initiation can be actioned at this stage.');
+
+        $data = $request->validate([
+            'payment_method'    => ['nullable', 'in:cash,bank,mobile_money'],
+            'payment_reference' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $expense->update([
+            'status'                => 'pending_release',
+            'payment_initiated_by'  => $request->user()->id,
+            'payment_initiated_at'  => now(),
+            'payment_method'        => $data['payment_method'] ?? null,
+            'payment_reference'     => $data['payment_reference'] ?? null,
+        ]);
+        ApprovalLog::record($expense, 'payment_initiated', $request->user());
+
+        return response()->json(['data' => new ExpenseResource(
+            $expense->fresh()->load(['category', 'createdBy', 'reviewer', 'paymentInitiatedBy'])
+        )]);
+    }
+
+    // The actual release — accountant or Director, but never the person who
+    // initiated the payment (separation of duties, mirrors
+    // PerDiemController::markPaid()). Ledger posting happens here, against
+    // real cash movement rather than mere approval.
+    public function markPaid(Request $request, Expense $expense, FinancePostingService $financePosting)
+    {
+        $user = $request->user();
+        abort_if(! $user->hasAccountantAuthority() && ! $user->hasFinalMoneyAuthority(), 403,
+            'Only the accountant or Director can release expense payment.');
+        $this->abortIfSelfActioning($expense, $request);
+        abort_if($expense->status !== 'pending_release', 422, 'Only expenses awaiting release can be marked paid.');
+        abort_if($expense->payment_initiated_by === $user->id, 403, 'You cannot release a payment you initiated.');
+
+        DB::transaction(function () use ($expense, $user, $financePosting) {
+            $expense->update(['status' => 'paid', 'paid_by' => $user->id, 'paid_at' => now()]);
+            $financePosting->postExpense($expense->fresh());
+            ApprovalLog::record($expense, 'paid', $user);
+        });
+
+        AppNotification::create([
+            'user_id'     => $expense->created_by,
+            ...app(NotificationTemplateService::class)->render('expense.paid', [
+                'expense_name' => $expense->name,
+            ]),
+            'entity_type' => 'expense',
+            'entity_id'   => $expense->id,
+            'is_read'     => false,
+        ]);
+
+        return response()->json(['data' => new ExpenseResource(
+            $expense->fresh()->load(['category', 'createdBy', 'reviewer', 'paymentInitiatedBy', 'paidBy'])
+        )]);
+    }
+
+    public function escalate(Request $request, Expense $expense)
+    {
+        if ($expense->status === 'pending_manager') {
+            $this->abortUnlessManagerStage($expense, $request->user());
+        } else {
+            abort_if(! $request->user()->hasCtoApprovalAuthority(), 403, 'You are not authorised to escalate expenses.');
+            abort_if($expense->status !== 'pending_cto', 422, 'Only expenses awaiting review can be escalated.');
+        }
+        $this->abortIfSelfActioning($expense, $request);
+
+        $data = $request->validate(['escalation_reason' => ['nullable', 'string']]);
+
+        $expense->update([
+            'status'            => 'pending_director',
+            'escalated_by'      => $request->user()->id,
+            'escalated_at'      => now(),
+            'escalation_reason' => $data['escalation_reason'] ?? $expense->escalation_reason ?? 'Escalated by CTO for Director review.',
+        ]);
+        ApprovalLog::record($expense, 'escalated', $request->user(), $data['escalation_reason'] ?? null);
+
+        $this->notifyDirector($expense);
+
+        return response()->json(['data' => new ExpenseResource($expense->fresh()->load(['category', 'createdBy', 'escalator']))]);
+    }
+
+    public function reject(Request $request, Expense $expense)
+    {
+        $user = $request->user();
+
+        if ($expense->status === 'pending_manager') {
+            $this->abortUnlessManagerStage($expense, $user);
+        } elseif ($expense->status === 'pending_cto') {
+            abort_if(! $user->hasCtoApprovalAuthority(), 403, 'You are not authorised to review this expense.');
+        } elseif ($expense->status === 'pending_director') {
+            abort_if(! $user->hasFinalMoneyAuthority(), 403, 'Only the Director can reject this expense.');
+        } else {
+            abort(422, 'Only pending expenses can be rejected.');
+        }
+        $this->abortIfSelfActioning($expense, $request);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string']]);
+
+        $expense->update([
+            'status'            => 'rejected',
+            'reviewed_by'       => $user->id,
+            'reviewed_at'       => now(),
+            'rejection_reason'  => $data['rejection_reason'] ?? null,
+        ]);
+        ApprovalLog::record($expense, 'rejected', $user, $data['rejection_reason'] ?? null);
+
+        $this->notifyRequester($expense, approved: false);
+
+        return response()->json(['data' => new ExpenseResource($expense->fresh()->load(['category', 'createdBy', 'reviewer']))]);
+    }
+
+    private function notifyFinance(Expense $expense): void
+    {
+        $name = $expense->createdBy?->name ?? 'A staff member';
+
+        User::whereIn('role', ['finance_manager', 'finance', 'accountant'])
+            ->pluck('id')
+            ->each(fn ($id) => AppNotification::create([
+                'user_id'     => $id,
+                ...app(NotificationTemplateService::class)->render('expense.ready_to_pay', [
+                    'name'         => $name,
+                    'expense_name' => $expense->name,
+                ]),
+                'entity_type' => 'expense',
+                'entity_id'   => $expense->id,
+                'is_read'     => false,
+            ]));
+    }
+
+    private function notifyDirector(Expense $expense): void
+    {
+        $name = $expense->createdBy?->name ?? 'A staff member';
+
+        User::holdingPermission('authority.final_money_approval')
+            ->pluck('id')
+            ->each(fn ($id) => AppNotification::create([
+                'user_id'     => $id,
+                ...app(NotificationTemplateService::class)->render('expense.escalated_to_director', [
+                    'name'         => $name,
+                    'expense_name' => $expense->name,
+                    'gross_amount' => number_format($expense->gross_amount),
+                ]),
+                'entity_type' => 'expense',
+                'entity_id'   => $expense->id,
+                'is_read'     => false,
+            ]));
+    }
+
+    private function notifyRequester(Expense $expense, bool $approved): void
+    {
+        $templateKey = $approved ? 'expense.approved_requester' : 'expense.rejected_requester';
+        $reasonSuffix = (! $approved && $expense->rejection_reason) ? " Reason: {$expense->rejection_reason}" : '';
+
+        AppNotification::create([
+            'user_id'     => $expense->created_by,
+            ...app(NotificationTemplateService::class)->render($templateKey, [
+                'expense_name'  => $expense->name,
+                'reason_suffix' => $reasonSuffix,
+            ]),
+            'entity_type' => 'expense',
+            'entity_id'   => $expense->id,
+            'is_read'     => false,
+        ]);
+    }
+}

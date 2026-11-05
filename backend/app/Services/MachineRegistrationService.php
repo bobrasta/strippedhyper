@@ -1,0 +1,133 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\InventoryItem;
+use App\Models\Machine;
+use App\Models\SerialNumber;
+
+/**
+ * Shared by SalesOrderController::deliver() and PosSaleService — registers
+ * one Machine record per unit of equipment delivered to a hospital-linked
+ * sale. Kept as its own service so both call paths stay in sync.
+ */
+class MachineRegistrationService
+{
+    /**
+     * @return Machine[]
+     */
+    public function registerForDelivery(
+        InventoryItem $item,
+        int $hospitalId,
+        string $orderNumber,
+        int $priorQtyDelivered,
+        int $qtyJustDelivered,
+        ?int $salesOrderId = null,
+    ): array {
+        if (! $item->creates_machine_record) {
+            return [];
+        }
+
+        // Prefer consuming real, individually-tracked units when this item
+        // has any — units flagged has_missing_parts (cannibalized for a field
+        // repair, see PartCannibalization) are excluded so an incomplete unit
+        // can never ship. Falls back to fabricating a serial number when this
+        // item isn't tracked at the SerialNumber level at all — tracking is
+        // adopted gradually per item, not a hard prerequisite for delivery.
+        $isTracked = SerialNumber::where('inventory_item_id', $item->id)
+            ->where('status', 'available')
+            ->exists();
+
+        return $isTracked
+            ? $this->registerFromTrackedUnits($item, $hospitalId, $qtyJustDelivered, $salesOrderId)
+            : $this->registerWithFabricatedSerials($item, $hospitalId, $orderNumber, $priorQtyDelivered, $qtyJustDelivered, $salesOrderId);
+    }
+
+    /**
+     * @return Machine[]
+     */
+    private function registerFromTrackedUnits(InventoryItem $item, int $hospitalId, int $qtyJustDelivered, ?int $salesOrderId): array
+    {
+        $warrantyMonths = $item->warranty_months ?? 12;
+
+        $completeUnits = SerialNumber::where('inventory_item_id', $item->id)
+            ->where('status', 'available')
+            ->where('has_missing_parts', false)
+            ->oldest('id')
+            ->limit($qtyJustDelivered)
+            ->get();
+
+        abort_if($completeUnits->count() < $qtyJustDelivered, 422,
+            "Cannot deliver {$qtyJustDelivered}x {$item->name} — only {$completeUnits->count()} complete tracked unit(s) available. " .
+            'Some stocked units are flagged as missing parts (cannibalized for a field repair) and cannot ship until repaired.');
+
+        $machines = [];
+
+        foreach ($completeUnits as $serial) {
+            $machine = Machine::create([
+                'serial_no'       => $serial->serial_number,
+                'model'           => $item->name,
+                'type'            => $item->category?->name ?? 'Equipment',
+                'hospital_id'     => $hospitalId,
+                'sales_order_id'  => $salesOrderId,
+                'install_date'    => now()->toDateString(),
+                'warranty_expiry' => now()->addMonths($warrantyMonths)->toDateString(),
+                // Delivered doesn't mean installed — a technician still has to
+                // go commission it (see ServiceTicketController::resolve()'s
+                // 'installation' ticket handling) and a supervisor sign off
+                // before this moves to 'operational'.
+                'status'          => 'pending_installation',
+                // Section 13's own backfill migration only corrected
+                // EXISTING pending_installation rows to lifecycle_stage
+                // 'allocated' at migration time — new rows created here
+                // afterward would otherwise silently fall back to the
+                // column's 'installed' default, which is wrong (this
+                // machine hasn't been installed yet) and would make it
+                // invisible to Section 6's Allocated-machines picker. Found
+                // while building Section 6, which depends on this being
+                // correct for every path that produces a pending_installation
+                // machine, not just the ones added after Section 13 shipped.
+                'lifecycle_stage' => 'allocated',
+            ]);
+
+            $serial->update(['status' => 'in_service', 'assigned_to_machine_id' => $machine->id]);
+
+            $machines[] = $machine;
+        }
+
+        return $machines;
+    }
+
+    /**
+     * @return Machine[]
+     */
+    private function registerWithFabricatedSerials(
+        InventoryItem $item,
+        int $hospitalId,
+        string $orderNumber,
+        int $priorQtyDelivered,
+        int $qtyJustDelivered,
+        ?int $salesOrderId,
+    ): array {
+        $warrantyMonths = $item->warranty_months ?? 12;
+        $machines = [];
+
+        for ($i = 1; $i <= $qtyJustDelivered; $i++) {
+            $seq = $priorQtyDelivered + $i;
+            $machines[] = Machine::create([
+                'serial_no'       => "{$item->sku}-{$orderNumber}-{$seq}",
+                'model'           => $item->name,
+                'type'            => $item->category?->name ?? 'Equipment',
+                'hospital_id'     => $hospitalId,
+                'sales_order_id'  => $salesOrderId,
+                'install_date'    => now()->toDateString(),
+                'warranty_expiry' => now()->addMonths($warrantyMonths)->toDateString(),
+                'status'          => 'pending_installation',
+                // See the same fix in registerFromTrackedUnits() above.
+                'lifecycle_stage' => 'allocated',
+            ]);
+        }
+
+        return $machines;
+    }
+}

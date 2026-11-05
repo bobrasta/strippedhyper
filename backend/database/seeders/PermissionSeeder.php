@@ -1,0 +1,347 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+
+/**
+ * Phase 1 of the dynamic access-control system: seeds the 12 legacy roles
+ * as real (editable, deletable-if-not-system) Spatie roles, backfills every
+ * existing user onto them so nothing changes in production the moment this
+ * ships, and seeds the module-wide permission catalog including the
+ * "bridge" permissions that now back User::hasXAuthority()'s dynamic checks
+ * (see app/Models/User.php and app/Services/EffectivePermissionResolver.php).
+ *
+ * One-time bootstrap, guarded and safe to wire into every deploy: the main
+ * step no-ops once any role exists. This is deliberate — after the first
+ * run, an admin can freely edit role permissions via the Role Builder, and
+ * a later, unrelated deploy must never silently re-assert this seed data
+ * over their changes. Later additions (like seedScreenPermissions()) get
+ * their own independent guard and get called unconditionally below, so
+ * this one seeder class can keep growing without a new deploy-chain entry
+ * per addition — each step just needs to check for its own prior existence
+ * before writing anything.
+ */
+class PermissionSeeder extends Seeder
+{
+    public function run(): void
+    {
+        if (Role::count() === 0) {
+            $roles = $this->seedRoles();
+            $this->backfillUserRoles($roles);
+            $permissions = $this->seedPermissionCatalog();
+            $this->seedBridgePermissions($roles, $permissions);
+            $this->seedModulePermissions($roles, $permissions);
+        }
+
+        $this->seedScreenPermissions();
+    }
+
+    /** @return array<string, Role> */
+    private function seedRoles(): array
+    {
+        $roles = [];
+        foreach (User::ROLES as $name) {
+            $roles[$name] = Role::firstOrCreate(
+                ['name' => $name, 'guard_name' => 'web'],
+                ['is_system' => true]
+            );
+        }
+
+        return $roles;
+    }
+
+    /** @param array<string, Role> $roles */
+    private function backfillUserRoles(array $roles): void
+    {
+        User::whereDoesntHave('roles')->each(function (User $user) use ($roles) {
+            if (isset($roles[$user->role])) {
+                $user->assignRole($roles[$user->role]);
+            }
+        });
+    }
+
+    /** @return array<string, Permission> */
+    private function seedPermissionCatalog(): array
+    {
+        // module => [key => [label, description]]
+        $catalog = [
+            'sales' => [
+                'sales.create'                 => ['Create Sales Records', 'Create quotations and sales orders'],
+                'sales.edit'                   => ['Edit Sales Records', 'Edit existing quotations and sales orders'],
+                'sales.issue_quotation'        => ['Issue Quotations', 'Send a quotation to a client'],
+                // 2026-10-23: engineers prepare quotations (credited to them) but don't raise orders or invoices.
+                'sales.prepare_quotation'      => ['Prepare Quotations', 'Create and edit their own draft quotations — no sales orders or invoices'],
+                'sales.approve_order'          => ['Approve Sales Orders', 'Approve a quotation/order that exceeds a discount or value threshold'],
+                'sales.view_full_numbers'      => ['View Full Sales Figures', 'See exact revenue numbers rather than masked/rounded ones'],
+                'sales.create_subordinate_user'=> ['Create Subordinate Sales Users', 'Add sales staff reporting to this user'],
+            ],
+            'services' => [
+                'services.issue_ticket'        => ['Issue Service Tickets', 'Open a new service ticket'],
+                'services.add_engineer'        => ['Add Engineers', 'Register a new technician/engineer'],
+                'services.assign_ticket'       => ['Assign Service Tickets', 'Assign or reassign a technician to a ticket'],
+                'services.close_ticket'        => ['Close Service Tickets', 'Mark a service ticket resolved'],
+                'services.view_team_metrics'   => ['View Team Metrics', "See the wider team's ticket/workload stats"],
+                'services.sign_off_installation' => ['Sign Off Equipment Installation', 'Confirm a newly delivered unit was installed correctly (not the installer themselves)'],
+            ],
+            'hospitals' => [
+                'hospitals.manage' => ['Manage Hospitals', 'Create, edit, and delete hospital records'],
+            ],
+            'finance' => [
+                'finance.view_revenue'         => ['View Revenue Figures', 'See ledger revenue and profit numbers'],
+                'finance.approve_step1'        => ['Approve Finance — Stage 1', 'First-stage finance approval (e.g. period close)'],
+                'finance.approve_step2'        => ['Approve Finance — Stage 2', 'Second-stage / final finance approval'],
+                'finance.export_reports'       => ['Export Finance Reports', 'Download finance reports as CSV/PDF'],
+            ],
+            'inventory' => [
+                'inventory.adjust_stock'       => ['Adjust Stock Levels', 'Manually adjust on-hand stock quantities'],
+                'inventory.view_valuation'     => ['View Inventory Valuation', 'See total stock value figures'],
+                'inventory.approve_writeoff'   => ['Approve Stock Write-offs', 'Approve an issue/write-off stock-out request'],
+                'inventory.transfer_stock'     => ['Transfer Stock', 'Move stock between locations'],
+                'inventory.manage_catalog'     => ['Manage Inventory Catalog', 'Create/edit/delete items, suppliers, locations, and post stock movements directly'],
+            ],
+            'equipment' => [
+                'equipment.register_asset'         => ['Register Equipment', 'Add a new machine/asset record'],
+                'equipment.schedule_maintenance'   => ['Schedule Maintenance', 'Schedule preventive maintenance for a machine'],
+                'equipment.approve_disposal'       => ['Approve Equipment Disposal', 'Approve retiring/disposing of a machine'],
+            ],
+            'pos' => [
+                'pos.process_sale'             => ['Process POS Sales', 'Ring up a point-of-sale transaction'],
+                'pos.issue_refund'             => ['Issue POS Refunds', 'Refund a point-of-sale transaction'],
+                'pos.view_shift_totals'        => ['View Shift Totals', "See a cashier shift's sales totals"],
+            ],
+            'hr' => [
+                'hr.approve_leave'             => ['Approve Leave Requests', 'Approve or reject a staff leave request'],
+                'hr.view_team_attendance'      => ['View Team Attendance', 'See late-arrival and attendance reports'],
+            ],
+            // Legacy bridge permissions — see app/Models/User.php's hasXAuthority()
+            // methods and the seedBridgePermissions() assignment below. Each
+            // bundles multiple real actions from the 3 existing approval flows;
+            // decomposing them further is deferred (see plan doc, Phase 2).
+            'authority' => [
+                'authority.admin_tier'         => ['Full System Authority', 'Director-tier authority — supersedes every module-specific gate'],
+                'authority.final_money_approval' => ['Final Authorisation of Money', 'Director sign-off on money; never implied by admin_tier (see EffectivePermissionResolver::RESERVED)'],
+                'authority.manager_tier'       => ['Cross-Department Manager Authority', 'Task assignment/reassignment across any department'],
+                'authority.cto_tier'           => ['CTO Approval Authority', 'Bundles stock-out approval, per-diem final approval, expense CTO-stage approval, and service-ticket technician assignment'],
+                'authority.team_lead_tier'     => ['Team Lead Approval Authority', 'Per-diem team-lead (first) stage approval'],
+                // Deliberately separate from authority.manager_tier — cto/
+                // team_leader supervise technicians and hold equivalent
+                // authority everywhere else in the service-ticket world, but
+                // widening manager_tier itself would also change what it
+                // means at every other call site that already consumes it.
+                'tasks.manage_board'           => ['Manage Task Board', 'Create, reassign, and delete general (non-ticket) staff tasks'],
+            ],
+            'admin' => [
+                'roles.manage'                 => ['Manage Roles & Permissions', 'Create/edit roles and their permission grants'],
+                'staff.manage'                 => ['Manage Staff', 'Create, edit, and deactivate staff accounts, including changing a member\'s role'],
+                'messaging.read_others'        => ['Review Staff Chats', 'Read other people\'s in-app chats while the Director has chat review switched on; every read is logged. Reserved: only the Director can grant it'],
+            ],
+            'procurement' => [
+                'procurement.create_po'             => ['Create Purchase Orders', 'Draft a purchase order and pick a vendor/supplier'],
+                'procurement.approve_requisition'   => ['Approve Purchase Requisitions', 'Approve a submitted purchase requisition'],
+                'procurement.approve_po_sales_stage'=> ['Approve PO — Sales Stage', 'First-stage purchase-order approval (sales/commercial review)'],
+                'procurement.approve_po_director_stage' => ['Approve PO — Director Stage', 'Second-stage purchase-order approval (director review)'],
+                'procurement.initiate_payment'      => ['Initiate PO Payment', 'Mark a purchase order as ready for/undergoing payment'],
+                'procurement.approve_payment_final'=> ['Final PO Payment Approval', 'Final director sign-off after payment has been initiated'],
+                // Purchases menu (2026-10-26): add a purchase (a PO, through the
+                // same approval chain) and record returns to the supplier.
+                'purchases.create'                  => ['Add Purchases', 'Add a purchase (starts the purchase-order approval chain) and record purchase returns'],
+            ],
+            'logistics' => [
+                'logistics.deliver_order' => ['Deliver Sales Orders', 'Mark a sales order delivered to the customer'],
+                'logistics.receive_order' => ['Receive Purchase Orders', 'Mark a purchase order received from the vendor'],
+            ],
+            'machines' => [
+                'machines.receive'  => ['Receive Machine', 'Record new equipment arriving into a store, before it belongs to any hospital'],
+                'machines.allocate' => ['Allocate Machine', 'Reserve an In Stock machine for a hospital ahead of installation'],
+            ],
+        ];
+
+        $permissions = [];
+        foreach ($catalog as $module => $keys) {
+            foreach ($keys as $key => [$label, $description]) {
+                $permissions[$key] = Permission::firstOrCreate(
+                    ['name' => $key, 'guard_name' => 'web'],
+                    ['module' => $module, 'label' => $label, 'description' => $description]
+                );
+            }
+        }
+
+        return $permissions;
+    }
+
+    /**
+     * Exact 1:1 replication of the pre-Phase-1 role-tier constants in
+     * User.php — this is what keeps hasXAuthority() call sites behaviorally
+     * unchanged across the 15+ controllers (including the 3 live approval
+     * workflows) that call them.
+     *
+     * @param array<string, Role> $roles
+     * @param array<string, Permission> $permissions
+     */
+    private function seedBridgePermissions(array $roles, array $permissions): void
+    {
+        $grants = [
+            'authority.admin_tier'     => ['super_admin', 'admin'],
+            'authority.manager_tier'   => ['super_admin', 'admin', 'sales_manager', 'finance_manager'],
+            'sales.approve_order'      => ['super_admin', 'admin', 'sales_manager'],
+            'finance.approve_step1'    => ['super_admin', 'admin', 'finance_manager'],
+            'hr.approve_leave'         => ['super_admin', 'admin', 'hr'],
+            'authority.cto_tier'       => ['super_admin', 'admin', 'cto'],
+            'authority.team_lead_tier' => ['super_admin', 'admin', 'cto', 'team_leader'],
+            'tasks.manage_board'       => ['super_admin', 'admin', 'sales_manager', 'finance_manager', 'cto', 'team_leader'],
+        ];
+
+        foreach ($grants as $permKey => $roleNames) {
+            foreach ($roleNames as $roleName) {
+                $this->grantRolePermission($roles[$roleName], $permissions[$permKey]);
+            }
+        }
+    }
+
+    /**
+     * Reasonable starting grants for the forward-looking catalog — not
+     * consumed by any controller yet in this pass, so mistakes here are
+     * cosmetic (Role Builder starting state), not a regression risk.
+     *
+     * @param array<string, Role> $roles
+     * @param array<string, Permission> $permissions
+     */
+    private function seedModulePermissions(array $roles, array $permissions): void
+    {
+        $fullAccessKeys = array_keys($permissions);
+        foreach (['super_admin', 'admin'] as $tier) {
+            foreach ($fullAccessKeys as $key) {
+                $this->grantRolePermission($roles[$tier], $permissions[$key]);
+            }
+        }
+
+        $grants = [
+            'sales_manager' => ['sales.create', 'sales.edit', 'sales.issue_quotation', 'sales.view_full_numbers', 'sales.create_subordinate_user', 'procurement.approve_po_sales_stage', 'machines.receive', 'machines.allocate', 'purchases.create'],
+            'sales'         => ['sales.create', 'sales.edit', 'sales.issue_quotation', 'purchases.create'],
+            'finance_manager'=> ['finance.view_revenue', 'finance.approve_step2', 'finance.export_reports'],
+            'finance'       => [], // scoped grant below — 'masked' revenue view only
+            // No services.close_ticket — resolving a ticket is CTO/Director
+            // work, not the assigned technician's; see hasServiceTicketResolveAuthority().
+            'technician'    => ['services.issue_ticket', 'equipment.schedule_maintenance', 'sales.prepare_quotation'],
+            'cs'            => ['services.issue_ticket'],
+            'storekeeper'   => ['inventory.adjust_stock', 'inventory.transfer_stock', 'inventory.view_valuation', 'inventory.manage_catalog', 'logistics.receive_order', 'machines.receive', 'machines.allocate'],
+            'hr'            => ['hr.view_team_attendance', 'staff.manage', 'roles.manage'],
+            'cto'           => ['services.assign_ticket', 'services.add_engineer', 'services.view_team_metrics', 'inventory.approve_writeoff', 'services.sign_off_installation', 'services.close_ticket', 'hospitals.manage'],
+            'team_leader'   => ['services.view_team_metrics', 'services.assign_ticket', 'services.sign_off_installation', 'services.close_ticket', 'sales.prepare_quotation'],
+            'procurement_manager' => ['procurement.create_po', 'procurement.approve_requisition', 'inventory.manage_catalog'],
+            'accountant'    => ['procurement.initiate_payment'],
+            'logistics'     => ['logistics.deliver_order', 'logistics.receive_order'],
+        ];
+
+        foreach ($grants as $roleName => $permKeys) {
+            foreach ($permKeys as $key) {
+                $this->grantRolePermission($roles[$roleName], $permissions[$key]);
+            }
+        }
+
+        // Real demonstration of the scope column: rank-and-file finance staff
+        // see revenue figures at 'masked' scope, their manager at 'all'.
+        $this->grantRolePermission($roles['finance'], $permissions['finance.view_revenue'], 'masked');
+    }
+
+    // Mirrors Flutter's main.dart allowedScreenKeys() switch exactly, as real
+    // grantable permissions — so a new role built via the Role Builder can
+    // see relevant screens immediately instead of needing a Flutter redeploy
+    // to add a case to that switch. Flutter falls back to the old hardcoded
+    // table only if a user has none of these (e.g. permissions fetch failed).
+    // Independently guarded (not the top-level Role::count() check) so this
+    // step can be added after the initial bootstrap already ran in production.
+    private function seedScreenPermissions(): void
+    {
+        if (Permission::where('name', 'screens.notifications')->exists()) {
+            return;
+        }
+
+        $screenKeys = [
+            'dashboard', 'approvals', 'machines', 'detail', 'hospitals', 'service',
+            'inventory', 'finance', 'staff', 'my_leave', 'reports', 'settings',
+            'sales', 'customers', 'revenue', 'email', 'hr_approvals', 'hr_settings',
+            'hr_dashboard', 'hr_directory', 'hr_recruitment', 'hr_leave_calendar',
+            'hr_attendance', 'hr_payroll', 'hr_reports', 'notifications',
+            // Section 7: technician self-service — own service/installation
+            // reports, own per-diem/travel-plan submissions.
+            'my_service_reports', 'my_travel_plans',
+            // Section 16: Vendor Fees screen (Vendor Fees/Delivery Jobs/
+            // Vendors registry, gated as one screen key like 'finance' or
+            // 'inventory' already are).
+            'vendor_fees',
+            // 2026-10-23: Quotations on its own (engineers, without the Sales
+            // menu) and Staff contributions (Director — an admin account — and CTO).
+            'quotations', 'contributions',
+            // 2026-10-26: Purchases menu (Clickhuduma's), above Sales.
+            'purchases',
+        ];
+
+        $roles = Role::whereIn('name', User::ROLES)->get()->keyBy('name');
+
+        $screenPermissions = [];
+        foreach ($screenKeys as $key) {
+            $screenPermissions[$key] = Permission::firstOrCreate(
+                ['name' => "screens.{$key}", 'guard_name' => 'web'],
+                ['module' => 'screens', 'label' => 'View '.ucwords(str_replace('_', ' ', $key)).' Screen']
+            );
+        }
+
+        $grants = [
+            'super_admin'     => $screenKeys,
+            'admin'           => $screenKeys,
+            'cto'             => ['dashboard', 'approvals', 'machines', 'detail', 'hospitals', 'service', 'inventory', 'finance', 'staff', 'my_leave', 'reports', 'settings', 'notifications', 'contributions'],
+            // No 'staff' or 'inventory' — a technician does the repair work,
+            // not staff task assignment or stock management.
+            'technician'      => ['dashboard', 'machines', 'detail', 'hospitals', 'service', 'quotations', 'my_leave', 'my_service_reports', 'my_travel_plans', 'reports', 'settings', 'notifications'],
+            'team_leader'     => ['dashboard', 'approvals', 'machines', 'detail', 'hospitals', 'service', 'quotations', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'sales_manager'   => ['dashboard', 'approvals', 'machines', 'detail', 'sales', 'purchases', 'customers', 'revenue', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'sales'           => ['dashboard', 'machines', 'detail', 'sales', 'purchases', 'customers', 'revenue', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'finance_manager' => ['dashboard', 'revenue', 'finance', 'vendor_fees', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'finance'         => ['dashboard', 'revenue', 'finance', 'vendor_fees', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'cs'              => ['dashboard', 'customers', 'service', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            // 'machines' added 2026-09-22 — storekeeper has held
+            // machines.receive/allocate authority since Section 13 shipped
+            // but had no screens.machines grant, so no nav path to reach
+            // it at all. This source list only applies to a fresh seed —
+            // an already-seeded DB needs the migration backfill too (see
+            // 2026_09_22_*_grant_machines_screen_to_storekeeper.php),
+            // since seedScreenPermissions() early-returns once
+            // screens.notifications already exists.
+            'storekeeper'     => ['dashboard', 'machines', 'inventory', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            // No 'staff' (the task-assignment board) — that's Operations' job.
+            'hr'              => [
+                'dashboard', 'my_leave', 'hr_dashboard', 'hr_directory', 'hr_recruitment',
+                'hr_leave_calendar', 'hr_attendance', 'hr_payroll', 'hr_approvals',
+                'hr_reports', 'hr_settings', 'reports', 'settings', 'notifications',
+            ],
+            'procurement_manager' => ['dashboard', 'approvals', 'inventory', 'vendor_fees', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            // No 'staff' (the task-assignment board) — accountant handles
+            // payments, not staff task assignment.
+            'accountant'      => ['dashboard', 'approvals', 'revenue', 'finance', 'sales', 'vendor_fees', 'my_leave', 'reports', 'settings', 'notifications'],
+            'logistics'       => ['dashboard', 'inventory', 'sales', 'vendor_fees', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+        ];
+
+        foreach ($grants as $roleName => $keys) {
+            if (! isset($roles[$roleName])) {
+                continue;
+            }
+            foreach ($keys as $key) {
+                $this->grantRolePermission($roles[$roleName], $screenPermissions[$key]);
+            }
+        }
+    }
+
+    private function grantRolePermission(Role $role, Permission $permission, string $scope = 'all'): void
+    {
+        DB::table('role_has_permissions')->updateOrInsert(
+            ['role_id' => $role->id, 'permission_id' => $permission->id],
+            ['scope' => $scope]
+        );
+    }
+}

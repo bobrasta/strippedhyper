@@ -1,0 +1,534 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Services\Approvals\FastTrackService;
+use App\Support\DirectorFastTrack;
+use App\Http\Controllers\Api\Concerns\FiltersByPeriod;
+use App\Http\Controllers\Controller;
+use App\Models\AppNotification;
+use App\Models\ApprovalLog;
+use App\Models\Location;
+use App\Models\BatchLot;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseRequisition;
+use App\Models\SupplierPayment;
+use App\Services\Creditors\CreditorService;
+use App\Models\User;
+use App\Services\DocumentNumberService;
+use App\Services\DocumentPdfService;
+use App\Services\NotificationTemplateService;
+use App\Services\StockService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class PurchaseOrderController extends Controller
+{
+    use FiltersByPeriod;
+
+    // Every stage-approver relation, so the Flutter side can show real names
+    // ("Approved by Jane") at each step without a second round-trip. Shared
+    // by index/show/store and every stage-transition response below.
+    private const RELATIONS = [
+        'supplier', 'location', 'orderedBy', 'items.inventoryItem',
+        'salesApprovedBy', 'directorReviewedBy', 'paymentInitiatedBy',
+        'directorApprovedBy', 'rejectedBy',
+        'supplierPayments.paidFrom', 'vendorBills', 'returns',
+    ];
+
+    // No self-approval for anyone, at any stage — even the sales manager,
+    // director or accountant who happens to be the PO's own creator (spec
+    // Section 1; mirrors PerDiemController::abortIfSelfActioning()).
+    private function abortIfSelfActioning(PurchaseOrder $purchaseOrder, Request $request): void
+    {
+        abort_if(! DirectorFastTrack::active() && $purchaseOrder->ordered_by === $request->user()->id, 403,
+            'You cannot action a purchase order you created.');
+    }
+
+    public function index(Request $request)
+    {
+        abort_if(! $request->user()->hasPurchaseOrderReadAuthority(), 403, 'Not authorised.');
+
+        $pos = PurchaseOrder::with(self::RELATIONS)
+            ->when($request->status,      fn ($q, $s) => $q->where('status', $s))
+            ->when($request->supplier_id, fn ($q, $id) => $q->where('supplier_id', $id))
+            ->when($request->location_id, fn ($q, $id) => $q->where('location_id', $id))
+            ->withSum('returns as returned_amount', 'total_amount')
+            ->tap(fn ($q) => $this->applyPeriod($q, $request, 'created_at'))
+            ->latest()
+            ->paginate($this->perPage($request, 25));
+
+        return response()->json([
+            'data' => $pos->items(),
+            'meta' => [
+                'current_page' => $pos->currentPage(),
+                'last_page'    => $pos->lastPage(),
+                'total'        => $pos->total(),
+            ],
+        ]);
+    }
+
+    public function store(Request $request, DocumentNumberService $documentNumbers)
+    {
+        abort_if(! $request->user()->hasPurchaseCreateAuthority(), 403, 'You are not authorised to create purchase orders.');
+
+        $data = $request->validate([
+            'supplier_id'               => 'required|exists:suppliers,id',
+            'location_id'               => 'required|exists:locations,id',
+            'purchase_requisition_id'   => 'nullable|exists:purchase_requisitions,id',
+            'expected_delivery_date'    => 'nullable|date',
+            'currency'                  => 'nullable|string|max:10',
+            'shipping_address'          => 'nullable|string',
+            'terms'                     => 'nullable|string',
+            'notes'                     => 'nullable|string',
+            'items'                     => 'required|array|min:1',
+            'items.*.inventory_item_id' => 'required|exists:inventory_items,id',
+            'items.*.quantity_ordered'  => 'required|integer|min:1',
+            'items.*.unit_cost'         => 'required|numeric|min:0',
+            'items.*.currency'          => 'nullable|string|max:10',
+            'items.*.expiry_date'       => 'nullable|date',
+            'items.*.batch_number'      => 'nullable|string|max:100',
+            'items.*.notes'             => 'nullable|string',
+        ]);
+
+        return DB::transaction(function () use ($data, $request, $documentNumbers) {
+            $total = round(collect($data['items'])->sum(fn ($i) => round($i['quantity_ordered'] * $i['unit_cost'], 2)), 2);
+
+            $po = PurchaseOrder::create([
+                'po_number'               => $documentNumbers->next('purchase_order'),
+                'supplier_id'             => $data['supplier_id'],
+                'location_id'             => $data['location_id'],
+                'purchase_requisition_id' => $data['purchase_requisition_id'] ?? null,
+                'status'                  => 'draft',
+                'ordered_by'              => $request->user()->id,
+                'expected_delivery_date'  => $data['expected_delivery_date'] ?? null,
+                'currency'                => $data['currency'] ?? 'USD',
+                'total_amount'            => $total,
+                'shipping_address'        => $data['shipping_address'] ?? null,
+                'terms'                   => $data['terms'] ?? null,
+                'notes'                   => $data['notes'] ?? null,
+            ]);
+
+            foreach ($data['items'] as $item) {
+                $po->items()->create($item);
+            }
+
+            // Mark requisition as ordered
+            if ($po->purchase_requisition_id) {
+                PurchaseRequisition::where('id', $po->purchase_requisition_id)
+                    ->where('status', 'approved')
+                    ->update(['status' => 'ordered']);
+            }
+
+            return response()->json(['data' => $po->load(self::RELATIONS)], 201);
+        });
+    }
+
+    public function show(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasPurchaseOrderReadAuthority(), 403, 'Not authorised.');
+
+        $purchaseOrder->load([...self::RELATIONS, 'requisition']);
+        $purchaseOrder->items->loadSum('returnItems as quantity_returned', 'quantity');
+
+        return response()->json(['data' => $purchaseOrder]);
+    }
+
+    /** Print (Clickhuduma's purchase "Print"): the order on the letterhead. */
+    public function pdf(Request $request, PurchaseOrder $purchaseOrder, DocumentPdfService $pdf)
+    {
+        abort_if(! $request->user()->hasPurchaseOrderReadAuthority(), 403, 'Not authorised.');
+
+        return $pdf->purchaseOrderPdf($purchaseOrder);
+    }
+
+    public function update(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasPurchaseCreateAuthority(), 403, 'You are not authorised to edit purchase orders.');
+        // A draft, or a rejected order being fixed — saving puts it back to draft to resubmit.
+        abort_if(! in_array($purchaseOrder->status, ['draft', 'rejected']), 422, 'Only draft or rejected purchase orders can be edited.');
+
+        $data = $request->validate([
+            'supplier_id'               => 'sometimes|exists:suppliers,id',
+            'location_id'               => 'sometimes|exists:locations,id',
+            'expected_delivery_date'    => 'nullable|date',
+            'currency'                  => 'nullable|string|max:10',
+            'shipping_address'          => 'nullable|string',
+            'terms'                     => 'nullable|string',
+            'notes'                     => 'nullable|string',
+            'items'                     => 'sometimes|array|min:1',
+            'items.*.inventory_item_id' => 'required_with:items|exists:inventory_items,id',
+            'items.*.quantity_ordered'  => 'required_with:items|integer|min:1',
+            'items.*.unit_cost'         => 'required_with:items|numeric|min:0',
+            'items.*.currency'          => 'nullable|string|max:10',
+            'items.*.expiry_date'       => 'nullable|date',
+            'items.*.batch_number'      => 'nullable|string|max:100',
+            'items.*.notes'             => 'nullable|string',
+        ]);
+
+        DB::transaction(function () use ($purchaseOrder, $data) {
+            $items = $data['items'] ?? null;
+            unset($data['items']);
+            if ($items !== null) {
+                // Nothing has been received on a draft/rejected order, so the lines are replaced.
+                $purchaseOrder->items()->delete();
+                foreach ($items as $item) {
+                    $purchaseOrder->items()->create($item);
+                }
+                $data['total_amount'] = round(collect($items)->sum(fn ($i) => $i['quantity_ordered'] * $i['unit_cost']), 2);
+            }
+            if ($purchaseOrder->status === 'rejected') {
+                $data += ['status' => 'draft', 'rejected_by' => null, 'rejected_at' => null, 'rejection_reason' => null,
+                    'sales_approved_by' => null, 'sales_approved_at' => null, 'director_reviewed_by' => null, 'director_reviewed_at' => null,
+                    'payment_initiated_by' => null, 'payment_initiated_at' => null, 'director_approved_by' => null, 'director_approved_at' => null];
+            }
+            $purchaseOrder->update($data);
+        });
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function submitForApproval(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasPurchaseCreateAuthority(), 403, 'You are not authorised to submit purchase orders.');
+        abort_if($purchaseOrder->status !== 'draft', 422, 'Only draft orders can be submitted for approval.');
+
+        $purchaseOrder->update(['status' => 'pending_sales_manager']);
+
+        // The Director's own order is approved at once (Finance still pays).
+        if ($request->user()->isDirector()) {
+            app(FastTrackService::class)->approveOwn('purchase_order', $purchaseOrder, $request->user());
+
+            return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+        }
+
+        $this->notifyStage($purchaseOrder, 'sales_manager', 'purchase_order.submitted',
+            ['po_number' => $purchaseOrder->po_number]);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function approveSalesManager(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasProcurementSalesStageAuthority(), 403, 'You are not authorised to approve this purchase order.');
+        $this->abortIfSelfActioning($purchaseOrder, $request);
+        abort_if($purchaseOrder->status !== 'pending_sales_manager', 422, 'Only orders awaiting sales review can be approved at this stage.');
+
+        $purchaseOrder->update([
+            'status'            => 'pending_director_review',
+            'sales_approved_by' => $request->user()->id,
+            'sales_approved_at' => now(),
+        ]);
+        ApprovalLog::record($purchaseOrder, 'sales_approved', $request->user());
+
+        $this->notifyStage($purchaseOrder, 'director', 'purchase_order.sales_approved_director',
+            ['po_number' => $purchaseOrder->po_number]);
+        // Visibility only — cto isn't a gate on this chain, just kept informed.
+        $this->notifyStage($purchaseOrder, 'cto', 'purchase_order.sales_approved_cto_notice',
+            ['po_number' => $purchaseOrder->po_number]);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function rejectSalesManager(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasProcurementSalesStageAuthority(), 403, 'You are not authorised to review this purchase order.');
+        abort_if($purchaseOrder->status !== 'pending_sales_manager', 422, 'Only orders awaiting sales review can be rejected at this stage.');
+
+        $this->reject($request, $purchaseOrder);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function approveDirectorReview(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasFinalMoneyAuthority(), 403, 'Only the director can approve this purchase order.');
+        $this->abortIfSelfActioning($purchaseOrder, $request);
+        abort_if($purchaseOrder->status !== 'pending_director_review', 422, 'Only orders awaiting director review can be approved at this stage.');
+
+        $purchaseOrder->update([
+            'status'                => 'pending_payment_initiation',
+            'director_reviewed_by'  => $request->user()->id,
+            'director_reviewed_at'  => now(),
+        ]);
+        ApprovalLog::record($purchaseOrder, 'director_reviewed', $request->user());
+
+        $this->notifyStage($purchaseOrder, 'accountant', 'purchase_order.director_reviewed',
+            ['po_number' => $purchaseOrder->po_number]);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function rejectDirectorReview(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasFinalMoneyAuthority(), 403, 'Only the director can reject this purchase order.');
+        abort_if($purchaseOrder->status !== 'pending_director_review', 422, 'Only orders awaiting director review can be rejected at this stage.');
+
+        $this->reject($request, $purchaseOrder);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function initiatePayment(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasAccountantAuthority(), 403, 'You are not authorised to initiate payment on this purchase order.');
+        $this->abortIfSelfActioning($purchaseOrder, $request);
+        abort_if($purchaseOrder->status !== 'pending_payment_initiation', 422, 'Only orders awaiting payment initiation can be actioned at this stage.');
+
+        // Either a payment (the whole order, a deposit, …) through the
+        // supplier-payment chain, or "on credit": the supplier is paid later
+        // against their invoice, and the order shows on their ledger.
+        $data = $request->validate([
+            'on_credit'   => 'nullable|boolean',
+            'amount'      => 'nullable|numeric|min:0.01',
+            'amount_paid' => 'nullable|integer|min:0', // older app versions
+        ]);
+        $onCredit = $request->boolean('on_credit');
+
+        DB::transaction(function () use ($request, $purchaseOrder, $data, $onCredit) {
+            if (! $onCredit) {
+                $amount = $data['amount'] ?? $data['amount_paid'] ?? $purchaseOrder->total_amount;
+                $request->merge(['amount' => $amount]);
+                app(SupplierPaymentController::class)->initiate($request, app(DocumentNumberService::class), [
+                    'supplier_id' => $purchaseOrder->supplier_id,
+                    'purchase_order_id' => $purchaseOrder->id,
+                ]);
+            }
+            $purchaseOrder->update([
+                'status'               => 'pending_director_final',
+                'payment_initiated_by' => $request->user()->id,
+                'payment_initiated_at' => now(),
+                'on_credit'            => $onCredit,
+            ]);
+        });
+        ApprovalLog::record($purchaseOrder, $onCredit ? 'credit_requested' : 'payment_initiated', $request->user());
+
+        // The Director already approved this order past the stages: their
+        // final approval follows now that Finance has recorded the payment
+        // (unless they recorded it themselves; then it waits as usual).
+        $director = FastTrackService::fastTrackedBy($purchaseOrder);
+        if ($director && $director->isDirector() && $director->id !== $request->user()->id) {
+            $asDirector = Request::create('/', 'POST');
+            $asDirector->setUserResolver(fn () => $director);
+            DirectorFastTrack::run(fn () => $this->approveDirectorFinal($asDirector, $purchaseOrder->fresh()));
+
+            return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+        }
+
+        $this->notifyStage($purchaseOrder, 'director', 'purchase_order.payment_initiated',
+            ['po_number' => $purchaseOrder->po_number]);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function approveDirectorFinal(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasFinalMoneyAuthority(), 403, 'Only the director can give final approval on this purchase order.');
+        $this->abortIfSelfActioning($purchaseOrder, $request);
+        abort_if($purchaseOrder->status !== 'pending_director_final', 422, 'Only orders awaiting final director approval can be actioned at this stage.');
+        abort_if($purchaseOrder->payment_initiated_by === $request->user()->id, 403, 'The same person cannot both initiate payment and give final approval on it.');
+
+        DB::transaction(function () use ($request, $purchaseOrder) {
+            // The payment requested with this order posts now (books + ledger).
+            $pending = SupplierPayment::where('purchase_order_id', $purchaseOrder->id)->where('status', 'pending_director')->get();
+            foreach ($pending as $payment) {
+                $paid = app(CreditorService::class)->approvePayment($payment, $request->user());
+                ApprovalLog::record($paid, 'paid', $request->user());
+            }
+            $purchaseOrder->update([
+                'status'                => 'approved',
+                'director_approved_by'  => $request->user()->id,
+                'director_approved_at'  => now(),
+            ]);
+            app(CreditorService::class)->refreshPurchaseOrder($purchaseOrder->fresh());
+        });
+        ApprovalLog::record($purchaseOrder, 'approved', $request->user());
+
+        $this->notifyStage($purchaseOrder, 'ordered_by', 'purchase_order.approved',
+            ['po_number' => $purchaseOrder->po_number]);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    public function rejectDirectorFinal(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasFinalMoneyAuthority(), 403, 'Only the director can reject this purchase order.');
+        abort_if($purchaseOrder->status !== 'pending_director_final', 422, 'Only orders awaiting final director approval can be rejected at this stage.');
+
+        $this->reject($request, $purchaseOrder);
+        SupplierPayment::where('purchase_order_id', $purchaseOrder->id)->where('status', 'pending_director')->update([
+            'status' => 'rejected', 'rejected_by' => $request->user()->id, 'rejected_at' => now(),
+            'rejection_reason' => $purchaseOrder->rejection_reason ?: 'The purchase order was rejected.',
+        ]);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    /** Shared rejection path — any stage, any authorised reviewer for that stage. */
+    private function reject(Request $request, PurchaseOrder $purchaseOrder): void
+    {
+        $this->abortIfSelfActioning($purchaseOrder, $request);
+
+        $data = $request->validate(['rejection_reason' => 'nullable|string']);
+
+        $purchaseOrder->update([
+            'status'            => 'rejected',
+            'rejected_by'       => $request->user()->id,
+            'rejected_at'       => now(),
+            'rejection_reason'  => $data['rejection_reason'] ?? null,
+        ]);
+
+        $reasonSuffix = $purchaseOrder->rejection_reason ? " Reason: {$purchaseOrder->rejection_reason}" : '';
+        AppNotification::create([
+            'user_id'     => $purchaseOrder->ordered_by,
+            ...app(NotificationTemplateService::class)->render('purchase_order.rejected', [
+                'po_number'     => $purchaseOrder->po_number,
+                'reason_suffix' => $reasonSuffix,
+            ]),
+            'entity_type' => 'purchase_order',
+            'entity_id'   => $purchaseOrder->id,
+            'is_read'     => false,
+        ]);
+    }
+
+    /**
+     * Fans a notification out to everyone who can act on (or, for 'cto',
+     * just observe) the next stage. $target is either a role name
+     * ('sales_manager', 'cto') or 'director'/'accountant' (which resolve to
+     * their real authority tiers rather than a single role string, since
+     * both can be held by more than one role) or 'ordered_by' (the PO's
+     * original creator specifically, not a role at all).
+     */
+    public function notifyStage(PurchaseOrder $po, string $target, string $templateKey, array $vars = []): void
+    {
+        $recipientIds = match ($target) {
+            'sales_manager' => User::where('role', 'sales_manager')->pluck('id'),
+            'accountant'    => User::where('role', 'accountant')->pluck('id'),
+            'director'      => User::holdingPermission('authority.final_money_approval')->pluck('id'),
+            'cto'           => User::holdingPermission('authority.cto_tier')->pluck('id'),
+            'ordered_by'    => collect([$po->ordered_by])->filter(),
+            default         => collect(),
+        };
+
+        $recipientIds->each(fn ($id) => AppNotification::create([
+            'user_id'     => $id,
+            ...app(NotificationTemplateService::class)->render($templateKey, $vars),
+            'entity_type' => 'purchase_order',
+            'entity_id'   => $po->id,
+            'is_read'     => false,
+        ]));
+    }
+
+    // Mark PO as sent to supplier
+    public function send(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasPurchaseCreateAuthority(), 403, 'You are not authorised to send purchase orders.');
+        abort_if($purchaseOrder->status !== 'approved', 422, 'Only fully-approved orders can be sent.');
+
+        $purchaseOrder->update([
+            'status'  => 'sent',
+            'sent_at' => now(),
+        ]);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+
+    // Goods Received Note — record received quantities and update stock
+    public function receive(Request $request, PurchaseOrder $purchaseOrder, StockService $stockService)
+    {
+        abort_if(! $request->user()->hasLogisticsReceiveAuthority(), 403, 'You are not authorised to receive purchase orders.');
+        abort_if(!in_array($purchaseOrder->status, ['sent', 'acknowledged', 'partially_received']), 422, 'Order cannot be received in its current status.');
+        abort_if(!$purchaseOrder->location_id, 422, 'This purchase order has no destination location set.');
+
+        $data = $request->validate([
+            'items'                             => 'required|array|min:1',
+            'items.*.purchase_order_item_id'    => 'required|exists:purchase_order_items,id',
+            'items.*.quantity_received'         => 'required|integer|min:1',
+            'items.*.batch_number'              => 'nullable|string|max:100',
+            'items.*.expiry_date'               => 'nullable|date',
+            'notes'                             => 'nullable|string',
+            'exchange_rate'                     => 'nullable|numeric|min:0.0001',
+        ]);
+
+        // Stock is valued in TZS. A foreign-currency order converts at the
+        // rate given here, else the average rate of its approved payments.
+        $rate = 1.0;
+        if (strtoupper((string) $purchaseOrder->currency) !== 'TZS') {
+            $paid = SupplierPayment::where('purchase_order_id', $purchaseOrder->id)->where('status', 'paid')->get();
+            $rate = (float) ($data['exchange_rate'] ?? ($paid->sum('amount') > 0 ? $paid->sum('amount_tzs') / $paid->sum('amount') : 0));
+            abort_if($rate <= 0, 422, "Enter the exchange rate (TZS per {$purchaseOrder->currency}) to value this stock.");
+        }
+
+        return DB::transaction(function () use ($data, $purchaseOrder, $stockService, $rate) {
+            $allReceived = true;
+            $location = $purchaseOrder->location;
+
+            foreach ($data['items'] as $received) {
+                $poItem = $purchaseOrder->items()->findOrFail($received['purchase_order_item_id']);
+
+                $newQtyReceived = $poItem->quantity_received + $received['quantity_received'];
+                $poItem->update([
+                    'quantity_received' => $newQtyReceived,
+                    'batch_number'      => $received['batch_number'] ?? $poItem->batch_number,
+                    'expiry_date'       => $received['expiry_date'] ?? $poItem->expiry_date,
+                ]);
+
+                if ($newQtyReceived < $poItem->quantity_ordered) {
+                    $allReceived = false;
+                }
+
+                $movement = $stockService->add(
+                    $poItem->inventoryItem,
+                    $location,
+                    $received['quantity_received'],
+                    (int) round($poItem->unit_cost * $rate),
+                    $data['notes'] ?? "Received via {$purchaseOrder->po_number}",
+                    $purchaseOrder,
+                );
+
+                $lotNumber = trim((string) ($received['batch_number'] ?? ''));
+                if ($lotNumber !== '' || isset($received['expiry_date'])) {
+                    $movement->update([
+                        'batch_number' => $lotNumber !== '' ? $lotNumber : null,
+                        'expiry_date'  => $received['expiry_date'] ?? null,
+                    ]);
+                }
+
+                // A lot row is what the sale/invoice product search lists, so
+                // received stock with a lot number can be picked by lot.
+                if ($lotNumber !== '') {
+                    BatchLot::create([
+                        'inventory_item_id' => $poItem->inventory_item_id,
+                        'batch_number'      => $lotNumber,
+                        'lot_number'        => $lotNumber,
+                        'expiry_date'       => $received['expiry_date'] ?? null,
+                        'qty_received'      => $received['quantity_received'],
+                        'qty_remaining'     => $received['quantity_received'],
+                        'supplier_id'       => $purchaseOrder->supplier_id,
+                        'unit_cost'         => (int) round($poItem->unit_cost * $rate),
+                        'currency'          => 'TZS',
+                        'received_at'       => now()->toDateString(),
+                        'notes'             => "Received via {$purchaseOrder->po_number}",
+                    ]);
+                }
+            }
+
+            $purchaseOrder->update([
+                'status'               => $allReceived ? 'received' : 'partially_received',
+                'actual_delivery_date' => $allReceived ? now()->toDateString() : null,
+            ]);
+
+            return response()->json(['data' => $purchaseOrder->load(['items.inventoryItem'])]);
+        });
+    }
+
+    public function cancel(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_if(! $request->user()->hasPurchaseCreateAuthority(), 403, 'You are not authorised to cancel purchase orders.');
+        abort_if(in_array($purchaseOrder->status, ['received']), 422, 'Fully received orders cannot be cancelled.');
+
+        $purchaseOrder->update(['status' => 'cancelled']);
+
+        return response()->json(['data' => $purchaseOrder->fresh(self::RELATIONS)]);
+    }
+}
