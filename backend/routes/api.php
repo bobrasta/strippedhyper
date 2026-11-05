@@ -7,7 +7,6 @@ use App\Http\Controllers\Api\BatchLotController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\AdminOverviewController;
-use App\Http\Controllers\Api\CtoOverviewController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DeliveryJobController;
 use App\Http\Controllers\Api\DocumentSequenceController;
@@ -33,7 +32,6 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\CreditNoteController;
 use App\Http\Controllers\Api\LicenseController;
 use App\Http\Controllers\Api\LocationController;
-use App\Http\Controllers\Api\MachineController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\LetterController;
@@ -54,14 +52,12 @@ use App\Http\Controllers\Api\SalesOrderController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\SerialNumberController;
 use App\Http\Controllers\Api\SalesTeamController;
-use App\Http\Controllers\Api\ServiceTicketController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\StockLevelController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\LateArrivalController;
 use App\Http\Controllers\Api\StockOutRequestController;
-use App\Http\Controllers\Api\MyReportsController;
 use App\Http\Controllers\Api\PerDiemController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\LeaveController;
@@ -82,11 +78,9 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\ApplicantController;
 use App\Http\Controllers\Api\ApplicationController;
 use App\Http\Controllers\Api\InterviewController;
-use App\Http\Controllers\Api\PartCannibalizationController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\MeetingController;
-use App\Http\Controllers\Api\TicketAttachmentController;
 use App\Http\Controllers\Api\VendorBillController;
 use Illuminate\Support\Facades\Route;
 
@@ -141,7 +135,6 @@ Route::prefix('v1')->group(function () {
         Route::get('dashboard/unified', [UnifiedDashboardController::class, 'index']);
         Route::get('dashboard/store', [StoreDashboardController::class, 'index']);
         Route::get('dashboard/admin-overview', [AdminOverviewController::class, 'index']);
-        Route::get('dashboard/cto-overview', [CtoOverviewController::class, 'index']);
 
         // The Director's "Approve now" past every stage still open.
         Route::post('approvals/fast-track', [\App\Http\Controllers\Api\FastTrackController::class, 'store']);
@@ -303,7 +296,6 @@ Route::prefix('v1')->group(function () {
         Route::post('shipments/{shipment}/documents',           [ShipmentController::class, 'uploadDocument'])->whereNumber('shipment');
         Route::get('shipments/{shipment}/documents/{type}',     [ShipmentController::class, 'downloadDocument'])->whereNumber('shipment');
         Route::post('shipments/{shipment}/clearing-fee',        [ShipmentController::class, 'linkClearingFee'])->whereNumber('shipment');
-        Route::put('shipments/{shipment}/machines',             [ShipmentController::class, 'syncMachines'])->whereNumber('shipment');
         Route::post('departments',                              [ShipmentController::class, 'storeDepartment']);
         Route::put('departments/{department}',                  [ShipmentController::class, 'updateDepartment']);
 
@@ -323,47 +315,13 @@ Route::prefix('v1')->group(function () {
         // serve cached responses from an edge node in Nairobi/Johannesburg,
         // cutting round-trip latency for East-Africa clients from ~120 ms to ~15 ms.
         Route::middleware('cache.headers.api:60')->group(function () {
-            Route::get('machines/map', [MachineController::class, 'map']);
             Route::get('revenue/summary', [RevenueController::class, 'summary']);
             Route::get('revenue/by-hospital', [RevenueController::class, 'byHospital']);
             Route::get('reports', [ReportController::class, 'index']);
         });
 
-        // machines/in-stock must stay registered before the apiResource below
-        // (same reasoning as machines/map) — otherwise GET machines/{machine}
-        // would swallow it as if "in-stock" were an id.
-        Route::get('machines/in-stock', [MachineController::class, 'inStock']);
-        Route::post('machines/receive', [MachineController::class, 'receive']);
-
-        // Machines (map/in-stock/receive are registered above)
-        Route::apiResource('machines', MachineController::class);
-        Route::post('machines/{machine}/sign-off', [MachineController::class, 'signOff']);
-        Route::post('machines/{machine}/allocate', [MachineController::class, 'allocate']);
-        Route::get('machines/{machine}/costs', [MachineController::class, 'costs']);
-
-        // Hospitals
-        Route::get('hospitals/groups', [HospitalController::class, 'groups']);
-        Route::apiResource('hospitals', HospitalController::class);
-
-        // Service Tickets
-        Route::post('tickets/{ticket}/resolve', [ServiceTicketController::class, 'resolve']);
-        Route::post('tickets/{ticket}/override-billing', [ServiceTicketController::class, 'overrideBilling']);
-        Route::post('tickets/{ticket}/acknowledge', [ServiceTicketController::class, 'acknowledge']);
-        Route::post('tickets/{ticket}/advance-stage', [ServiceTicketController::class, 'advanceStage']);
-        Route::post('tickets/{ticket}/parts', [ServiceTicketController::class, 'addPart']);
-        Route::post('tickets/{ticket}/checklist', [ServiceTicketController::class, 'addChecklistItem']);
-        Route::post('tickets/{ticket}/checklist/{item}', [ServiceTicketController::class, 'toggleChecklist']);
-        // Section 6: multi-machine tickets, generalized to every ticket type.
-        Route::post('tickets/{ticket}/machines', [ServiceTicketController::class, 'addMachine']);
-        Route::delete('tickets/{ticket}/machines/{machine}', [ServiceTicketController::class, 'removeMachine']);
-        Route::post('tickets/{ticket}/machines/{machine}/complete', [ServiceTicketController::class, 'completeMachine']);
-        Route::get('tickets/{ticket}/attachments', [TicketAttachmentController::class, 'index']);
-        Route::post('tickets/{ticket}/attachments', [TicketAttachmentController::class, 'store']);
-        Route::delete('tickets/{ticket}/attachments/{attachment}', [TicketAttachmentController::class, 'destroy']);
-        Route::apiResource('tickets', ServiceTicketController::class);
-
-        // Section 7: technician self-service — own service/installation reports.
-        Route::get('my/service-reports', [MyReportsController::class, 'serviceReports']);
+        // Hospitals — the customer/client records (search, detail, create, edit).
+        Route::apiResource('hospitals', HospitalController::class)->where(['hospital' => '[0-9]+']);
 
         // Invoices & Revenue
         Route::get('document-terms',              [InvoiceController::class, 'termDefaults']);
@@ -628,7 +586,7 @@ Route::prefix('v1')->group(function () {
         Route::put('positions/{position}', [PositionController::class, 'update']);
         Route::delete('positions/{position}', [PositionController::class, 'destroy']);
 
-        // Tasks (general — separate from service tickets)
+        // Tasks (general)
         Route::apiResource('tasks', TaskController::class)->except(['show']);
 
         // Meetings register (Administrator = secretary; attendees read their own).
@@ -692,11 +650,6 @@ Route::prefix('v1')->group(function () {
         Route::post('per-diem-requests/{perDiemRequest}/propose-edit', [PerDiemController::class, 'submitTechnicianEdit']);
         Route::post('per-diem-requests/{perDiemRequest}/revisions/{revision}/approve', [PerDiemController::class, 'approveTechnicianEdit']);
         Route::post('per-diem-requests/{perDiemRequest}/revisions/{revision}/reject', [PerDiemController::class, 'rejectTechnicianEdit']);
-
-        // Part cannibalizations (parts pulled from stocked units to fix field machines)
-        Route::get('part-cannibalizations', [PartCannibalizationController::class, 'index']);
-        Route::post('part-cannibalizations/{partCannibalization}/order-replacement', [PartCannibalizationController::class, 'orderReplacement']);
-        Route::post('part-cannibalizations/{partCannibalization}/resolve', [PartCannibalizationController::class, 'resolve']);
 
         // Notifications
         Route::get('notifications', [NotificationController::class, 'index']);

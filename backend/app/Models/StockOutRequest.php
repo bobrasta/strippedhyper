@@ -26,11 +26,6 @@ class StockOutRequest extends Model
         return $this->belongsTo(Location::class);
     }
 
-    public function serviceTicket()
-    {
-        return $this->belongsTo(ServiceTicket::class);
-    }
-
     public function requester()
     {
         return $this->belongsTo(User::class, 'requested_by');

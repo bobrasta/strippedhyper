@@ -80,16 +80,8 @@ class PermissionSeeder extends Seeder
                 'sales.view_full_numbers'      => ['View Full Sales Figures', 'See exact revenue numbers rather than masked/rounded ones'],
                 'sales.create_subordinate_user'=> ['Create Subordinate Sales Users', 'Add sales staff reporting to this user'],
             ],
-            'services' => [
-                'services.issue_ticket'        => ['Issue Service Tickets', 'Open a new service ticket'],
-                'services.add_engineer'        => ['Add Engineers', 'Register a new technician/engineer'],
-                'services.assign_ticket'       => ['Assign Service Tickets', 'Assign or reassign a technician to a ticket'],
-                'services.close_ticket'        => ['Close Service Tickets', 'Mark a service ticket resolved'],
-                'services.view_team_metrics'   => ['View Team Metrics', "See the wider team's ticket/workload stats"],
-                'services.sign_off_installation' => ['Sign Off Equipment Installation', 'Confirm a newly delivered unit was installed correctly (not the installer themselves)'],
-            ],
             'hospitals' => [
-                'hospitals.manage' => ['Manage Hospitals', 'Create, edit, and delete hospital records'],
+                'hospitals.manage' => ['Manage Customer Records', 'Create, edit, and delete customer (hospital) records'],
             ],
             'finance' => [
                 'finance.view_revenue'         => ['View Revenue Figures', 'See ledger revenue and profit numbers'],
@@ -103,11 +95,6 @@ class PermissionSeeder extends Seeder
                 'inventory.approve_writeoff'   => ['Approve Stock Write-offs', 'Approve an issue/write-off stock-out request'],
                 'inventory.transfer_stock'     => ['Transfer Stock', 'Move stock between locations'],
                 'inventory.manage_catalog'     => ['Manage Inventory Catalog', 'Create/edit/delete items, suppliers, locations, and post stock movements directly'],
-            ],
-            'equipment' => [
-                'equipment.register_asset'         => ['Register Equipment', 'Add a new machine/asset record'],
-                'equipment.schedule_maintenance'   => ['Schedule Maintenance', 'Schedule preventive maintenance for a machine'],
-                'equipment.approve_disposal'       => ['Approve Equipment Disposal', 'Approve retiring/disposing of a machine'],
             ],
             'pos' => [
                 'pos.process_sale'             => ['Process POS Sales', 'Ring up a point-of-sale transaction'],
@@ -126,14 +113,13 @@ class PermissionSeeder extends Seeder
                 'authority.admin_tier'         => ['Full System Authority', 'Director-tier authority — supersedes every module-specific gate'],
                 'authority.final_money_approval' => ['Final Authorisation of Money', 'Director sign-off on money; never implied by admin_tier (see EffectivePermissionResolver::RESERVED)'],
                 'authority.manager_tier'       => ['Cross-Department Manager Authority', 'Task assignment/reassignment across any department'],
-                'authority.cto_tier'           => ['CTO Approval Authority', 'Bundles stock-out approval, per-diem final approval, expense CTO-stage approval, and service-ticket technician assignment'],
+                'authority.cto_tier'           => ['CTO Approval Authority', 'Bundles stock-out approval, per-diem final approval and expense CTO-stage approval'],
                 'authority.team_lead_tier'     => ['Team Lead Approval Authority', 'Per-diem team-lead (first) stage approval'],
                 // Deliberately separate from authority.manager_tier — cto/
-                // team_leader supervise technicians and hold equivalent
-                // authority everywhere else in the service-ticket world, but
-                // widening manager_tier itself would also change what it
-                // means at every other call site that already consumes it.
-                'tasks.manage_board'           => ['Manage Task Board', 'Create, reassign, and delete general (non-ticket) staff tasks'],
+                // team_leader supervise technicians, but widening
+                // manager_tier itself would also change what it means at
+                // every other call site that already consumes it.
+                'tasks.manage_board'           => ['Manage Task Board', 'Create, reassign, and delete general staff tasks'],
             ],
             'admin' => [
                 'roles.manage'                 => ['Manage Roles & Permissions', 'Create/edit roles and their permission grants'],
@@ -154,10 +140,6 @@ class PermissionSeeder extends Seeder
             'logistics' => [
                 'logistics.deliver_order' => ['Deliver Sales Orders', 'Mark a sales order delivered to the customer'],
                 'logistics.receive_order' => ['Receive Purchase Orders', 'Mark a purchase order received from the vendor'],
-            ],
-            'machines' => [
-                'machines.receive'  => ['Receive Machine', 'Record new equipment arriving into a store, before it belongs to any hospital'],
-                'machines.allocate' => ['Allocate Machine', 'Reserve an In Stock machine for a hospital ahead of installation'],
             ],
         ];
 
@@ -221,18 +203,15 @@ class PermissionSeeder extends Seeder
         }
 
         $grants = [
-            'sales_manager' => ['sales.create', 'sales.edit', 'sales.issue_quotation', 'sales.view_full_numbers', 'sales.create_subordinate_user', 'procurement.approve_po_sales_stage', 'machines.receive', 'machines.allocate', 'purchases.create'],
+            'sales_manager' => ['sales.create', 'sales.edit', 'sales.issue_quotation', 'sales.view_full_numbers', 'sales.create_subordinate_user', 'procurement.approve_po_sales_stage', 'purchases.create'],
             'sales'         => ['sales.create', 'sales.edit', 'sales.issue_quotation', 'purchases.create'],
             'finance_manager'=> ['finance.view_revenue', 'finance.approve_step2', 'finance.export_reports'],
             'finance'       => [], // scoped grant below — 'masked' revenue view only
-            // No services.close_ticket — resolving a ticket is CTO/Director
-            // work, not the assigned technician's; see hasServiceTicketResolveAuthority().
-            'technician'    => ['services.issue_ticket', 'equipment.schedule_maintenance', 'sales.prepare_quotation'],
-            'cs'            => ['services.issue_ticket'],
-            'storekeeper'   => ['inventory.adjust_stock', 'inventory.transfer_stock', 'inventory.view_valuation', 'inventory.manage_catalog', 'logistics.receive_order', 'machines.receive', 'machines.allocate'],
+            'technician'    => ['sales.prepare_quotation'],
+            'storekeeper'   => ['inventory.adjust_stock', 'inventory.transfer_stock', 'inventory.view_valuation', 'inventory.manage_catalog', 'logistics.receive_order'],
             'hr'            => ['hr.view_team_attendance', 'staff.manage', 'roles.manage'],
-            'cto'           => ['services.assign_ticket', 'services.add_engineer', 'services.view_team_metrics', 'inventory.approve_writeoff', 'services.sign_off_installation', 'services.close_ticket', 'hospitals.manage'],
-            'team_leader'   => ['services.view_team_metrics', 'services.assign_ticket', 'services.sign_off_installation', 'services.close_ticket', 'sales.prepare_quotation'],
+            'cto'           => ['inventory.approve_writeoff', 'hospitals.manage'],
+            'team_leader'   => ['sales.prepare_quotation'],
             'procurement_manager' => ['procurement.create_po', 'procurement.approve_requisition', 'inventory.manage_catalog'],
             'accountant'    => ['procurement.initiate_payment'],
             'logistics'     => ['logistics.deliver_order', 'logistics.receive_order'],
@@ -263,14 +242,14 @@ class PermissionSeeder extends Seeder
         }
 
         $screenKeys = [
-            'dashboard', 'approvals', 'machines', 'detail', 'hospitals', 'service',
+            'dashboard', 'approvals',
             'inventory', 'finance', 'staff', 'my_leave', 'reports', 'settings',
             'sales', 'customers', 'revenue', 'email', 'hr_approvals', 'hr_settings',
             'hr_dashboard', 'hr_directory', 'hr_recruitment', 'hr_leave_calendar',
             'hr_attendance', 'hr_payroll', 'hr_reports', 'notifications',
-            // Section 7: technician self-service — own service/installation
-            // reports, own per-diem/travel-plan submissions.
-            'my_service_reports', 'my_travel_plans',
+            // Section 7: technician self-service — own per-diem/travel-plan
+            // submissions.
+            'my_travel_plans',
             // Section 16: Vendor Fees screen (Vendor Fees/Delivery Jobs/
             // Vendors registry, gated as one screen key like 'finance' or
             // 'inventory' already are).
@@ -295,25 +274,17 @@ class PermissionSeeder extends Seeder
         $grants = [
             'super_admin'     => $screenKeys,
             'admin'           => $screenKeys,
-            'cto'             => ['dashboard', 'approvals', 'machines', 'detail', 'hospitals', 'service', 'inventory', 'finance', 'staff', 'my_leave', 'reports', 'settings', 'notifications', 'contributions'],
+            'cto'             => ['dashboard', 'approvals', 'inventory', 'finance', 'staff', 'my_leave', 'reports', 'settings', 'notifications', 'contributions'],
             // No 'staff' or 'inventory' — a technician does the repair work,
             // not staff task assignment or stock management.
-            'technician'      => ['dashboard', 'machines', 'detail', 'hospitals', 'service', 'quotations', 'my_leave', 'my_service_reports', 'my_travel_plans', 'reports', 'settings', 'notifications'],
-            'team_leader'     => ['dashboard', 'approvals', 'machines', 'detail', 'hospitals', 'service', 'quotations', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
-            'sales_manager'   => ['dashboard', 'approvals', 'machines', 'detail', 'sales', 'purchases', 'customers', 'revenue', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
-            'sales'           => ['dashboard', 'machines', 'detail', 'sales', 'purchases', 'customers', 'revenue', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'technician'      => ['dashboard', 'quotations', 'my_leave', 'my_travel_plans', 'reports', 'settings', 'notifications'],
+            'team_leader'     => ['dashboard', 'approvals', 'quotations', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'sales_manager'   => ['dashboard', 'approvals', 'sales', 'purchases', 'customers', 'revenue', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'sales'           => ['dashboard', 'sales', 'purchases', 'customers', 'revenue', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
             'finance_manager' => ['dashboard', 'revenue', 'finance', 'vendor_fees', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
             'finance'         => ['dashboard', 'revenue', 'finance', 'vendor_fees', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
-            'cs'              => ['dashboard', 'customers', 'service', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
-            // 'machines' added 2026-09-22 — storekeeper has held
-            // machines.receive/allocate authority since Section 13 shipped
-            // but had no screens.machines grant, so no nav path to reach
-            // it at all. This source list only applies to a fresh seed —
-            // an already-seeded DB needs the migration backfill too (see
-            // 2026_09_22_*_grant_machines_screen_to_storekeeper.php),
-            // since seedScreenPermissions() early-returns once
-            // screens.notifications already exists.
-            'storekeeper'     => ['dashboard', 'machines', 'inventory', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'cs'              => ['dashboard', 'customers', 'email', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
+            'storekeeper'     => ['dashboard', 'inventory', 'staff', 'my_leave', 'reports', 'settings', 'notifications'],
             // No 'staff' (the task-assignment board) — that's Operations' job.
             'hr'              => [
                 'dashboard', 'my_leave', 'hr_dashboard', 'hr_directory', 'hr_recruitment',

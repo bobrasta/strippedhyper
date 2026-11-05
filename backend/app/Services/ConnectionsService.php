@@ -10,7 +10,6 @@ use App\Models\Expense;
 use App\Models\InventoryItem;
 use App\Models\Invoice;
 use App\Models\Location;
-use App\Models\Machine;
 use App\Models\Payment;
 use App\Models\PerDiemRequest;
 use App\Models\PurchaseOrder;
@@ -35,7 +34,7 @@ use Illuminate\Support\Collection;
  * The web of records behind any record: requisition → LPO → approvals →
  * payments (cash, which bank, or on credit) → supplier invoice → shipment
  * (tender, TMDA, clearing fee) → received into a store → sold (sales order,
- * machine at a hospital, customer invoice, payments) — and the ledger
+ * customer invoice, payments) — and the ledger
  * entries each one posted.
  *
  * Walks outward from the subject. Hubs (a supplier, a stock item, a store,
@@ -62,7 +61,6 @@ class ConnectionsService
         'serial_number' => SerialNumber::class,
         'stock_movement' => StockMovement::class,
         'location' => Location::class,
-        'machine' => Machine::class,
         'sales_order' => SalesOrder::class,
         'invoice' => Invoice::class,
         'payment' => Payment::class,
@@ -166,7 +164,6 @@ class ConnectionsService
             $m instanceof SerialNumber => ['title' => $m->serial_number, 'subtitle' => 'Serial · ' . ($m->inventoryItem?->name ?? ''), 'status' => $m->status, 'date' => self::d($m->purchase_date)] + $money(null, null),
             $m instanceof StockMovement => ['title' => ucfirst($m->type) . ' ' . abs($m->quantity) . ' × ' . ($m->inventoryItem?->name ?? 'item'), 'subtitle' => 'Stock · ' . ($m->location?->name ?? '') . ($m->batch_number ? ' · batch ' . $m->batch_number : ''), 'status' => $m->type, 'date' => self::d($m->created_at)] + $money($m->unit_cost, 'TZS'),
             $m instanceof Location => ['title' => $m->name, 'subtitle' => 'Store / location', 'status' => null, 'date' => null] + $money(null, null),
-            $m instanceof Machine => ['title' => $m->serial_no, 'subtitle' => 'Machine · ' . $m->model . ($m->hospital?->name ? ' · ' . $m->hospital->name : ''), 'status' => $m->status, 'date' => self::d($m->arrival_date ?? $m->created_at)] + $money(null, null),
             $m instanceof SalesOrder => ['title' => $m->order_number, 'subtitle' => 'Sales order · ' . $m->client_name, 'status' => $m->status, 'date' => self::d($m->created_at)] + $money($m->total_amount, $m->currency),
             $m instanceof Invoice => ['title' => $m->invoice_number, 'subtitle' => 'Customer invoice · ' . $m->client_name, 'status' => $m->status, 'date' => self::d($m->issue_date)] + $money($m->total, $m->currency ?: 'TZS'),
             $m instanceof Payment => ['title' => $m->payment_number, 'subtitle' => 'Customer payment · ' . str_replace('_', ' ', (string) $m->payment_method), 'status' => 'received', 'date' => self::d($m->paid_at)] + $money($m->amount, 'TZS'),
@@ -229,7 +226,6 @@ class ConnectionsService
                 $add($m->vendorFee, 'clearing fee');
                 $add($m->carrier ?? null, 'carrier');
                 $add($m->supplier, 'supplier');
-                $add($m->machines, 'machine');
                 break;
             case 'vendor_fee':
                 $add($m->vendor, 'vendor');
@@ -254,19 +250,11 @@ class ConnectionsService
                 break;
             case 'serial_number':
                 $add($m->inventoryItem, 'item');
-                $add($m->assigned_to_machine_id ? Machine::find($m->assigned_to_machine_id) : null, 'in machine');
                 $add($m->location ?? null, 'store');
-                break;
-            case 'machine':
-                $add($m->hospital, 'at');
-                $add($m->salesOrder, 'sold on');
-                $add($m->invoices ?? collect(), 'invoiced on');
-                $add(Shipment::whereHas('machines', fn ($q) => $q->where('machines.id', $m->id))->get(), 'shipped on');
                 break;
             case 'sales_order':
                 $add($m->hospital, 'customer');
                 $add(Invoice::where('sales_order_id', $m->id)->get(), 'invoice');
-                $add(Machine::where('sales_order_id', $m->id)->get(), 'machine');
                 $add($movementsFor($m), 'issued from store');
                 break;
             case 'invoice':
@@ -296,7 +284,6 @@ class ConnectionsService
                 $add(StockMovement::where('location_id', $m->id)->latest('id')->limit(20)->get(), 'movement');
                 break;
             case 'hospital':
-                $add(Machine::where('hospital_id', $m->id)->latest('id')->limit(15)->get(), 'machine');
                 $add(Invoice::where('hospital_id', $m->id)->latest('id')->limit(15)->get(), 'invoice');
                 break;
         }

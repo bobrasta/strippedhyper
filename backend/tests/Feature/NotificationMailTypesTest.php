@@ -10,7 +10,7 @@ class NotificationMailTypesTest extends TestCase
 {
     public function test_every_workflow_type_is_emailed_by_default_except_low_stock(): void
     {
-        foreach (['per_diem_requested', 'expense_approved', 'leave_rejected', 'po_submitted', 'ticket_assigned', 'shipment_status'] as $type) {
+        foreach (['per_diem_requested', 'expense_approved', 'leave_rejected', 'po_submitted', 'shipment_status'] as $type) {
             $this->assertTrue(SendNotificationEmail::wanted($type), $type);
         }
         $this->assertFalse(SendNotificationEmail::wanted('low_stock_alert'));

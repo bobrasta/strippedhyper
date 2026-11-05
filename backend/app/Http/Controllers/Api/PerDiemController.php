@@ -70,7 +70,6 @@ class PerDiemController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'service_ticket_id' => ['nullable', 'exists:service_tickets,id'],
             'destination'       => ['nullable', 'string'],
             'start_date'        => ['nullable', 'date'],
             'end_date'          => ['nullable', 'date', 'after_or_equal:start_date'],

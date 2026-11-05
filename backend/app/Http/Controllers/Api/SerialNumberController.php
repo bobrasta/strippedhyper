@@ -12,7 +12,7 @@ class SerialNumberController extends Controller
 {
     public function index(Request $request, InventoryItem $inventoryItem)
     {
-        $query = $inventoryItem->serialNumbers()->with(['location', 'assignedMachine']);
+        $query = $inventoryItem->serialNumbers()->with(['location']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -27,7 +27,6 @@ class SerialNumberController extends Controller
             'serial_number'          => ['required', 'string', 'max:255', 'unique:serial_numbers'],
             'status'                 => ['nullable', 'in:available,assigned,in_service,sold,damaged,disposed'],
             'location_id'            => ['nullable', 'exists:locations,id'],
-            'assigned_to_machine_id' => ['nullable', 'exists:machines,id'],
             'purchase_date'          => ['nullable', 'date'],
             'warranty_expires_at'    => ['nullable', 'date'],
             'notes'                  => ['nullable', 'string'],
@@ -36,7 +35,7 @@ class SerialNumberController extends Controller
         $data['inventory_item_id'] = $inventoryItem->id;
 
         $serial = SerialNumber::create($data);
-        $serial->load(['location', 'assignedMachine']);
+        $serial->load(['location']);
 
         return (new SerialNumberResource($serial))->response()->setStatusCode(201);
     }
@@ -49,14 +48,13 @@ class SerialNumberController extends Controller
             'serial_number'          => ['sometimes', 'string', 'max:255', 'unique:serial_numbers,serial_number,' . $serialNumber->id],
             'status'                 => ['nullable', 'in:available,assigned,in_service,sold,damaged,disposed'],
             'location_id'            => ['nullable', 'exists:locations,id'],
-            'assigned_to_machine_id' => ['nullable', 'exists:machines,id'],
             'purchase_date'          => ['nullable', 'date'],
             'warranty_expires_at'    => ['nullable', 'date'],
             'notes'                  => ['nullable', 'string'],
         ]);
 
         $serialNumber->update($data);
-        $serialNumber->load(['location', 'assignedMachine']);
+        $serialNumber->load(['location']);
 
         return new SerialNumberResource($serialNumber);
     }

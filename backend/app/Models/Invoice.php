@@ -21,7 +21,7 @@ class Invoice extends Model
     }
 
     protected $fillable = [
-        'invoice_number', 'hospital_id', 'machine_id',
+        'invoice_number', 'hospital_id',
         'sales_order_id', 'client_name', 'client_contact', 'client_email', 'client_tin',
         'issue_date', 'due_date', 'subtotal', 'tax_rate',
         'tax_amount', 'total', 'amount_paid', 'status', 'currency', 'notes',
@@ -97,11 +97,6 @@ class Invoice extends Model
     public function hospital()
     {
         return $this->belongsTo(Hospital::class);
-    }
-
-    public function machine()
-    {
-        return $this->belongsTo(Machine::class);
     }
 
     public function lineItems()

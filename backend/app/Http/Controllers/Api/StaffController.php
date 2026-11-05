@@ -40,7 +40,7 @@ class StaffController extends Controller
         if ($user->hasStaffViewAuthority() || $user->hasStaffManageAuthority()) {
             // Last activity = the newest Sanctum token use (updated on every
             // authenticated request) — shown as "Last active" in Team & Roles.
-            $staff = User::with(['currentTask', 'position'])->withMax('tokens', 'last_used_at')->where('is_active', true)->get();
+            $staff = User::with(['position'])->withMax('tokens', 'last_used_at')->where('is_active', true)->get();
 
             return UserResource::collection($staff);
         }
@@ -49,7 +49,7 @@ class StaffController extends Controller
         // scoped "my team" view — sales.create_subordinate_user grants
         // seeing/building their own reports, never the company roster.
         if ($user->hasSalesCreateSubordinateAuthority()) {
-            $staff = User::with(['currentTask', 'position'])
+            $staff = User::with(['position'])
                 ->withMax('tokens', 'last_used_at')
                 ->where('is_active', true)
                 ->where('manager_id', $user->id)
@@ -173,7 +173,7 @@ class StaffController extends Controller
         abort_if(! $request->user()->hasStaffViewAuthority(), 403,
             'Access Denied: you do not have permission to view staff details.');
 
-        $user->load(['currentTask', 'position']);
+        $user->load(['position']);
 
         return response()->json(['data' => new UserResource($user)]);
     }
@@ -247,7 +247,7 @@ class StaffController extends Controller
             app(\App\Services\EffectivePermissionResolver::class)->invalidate($user);
         }
 
-        return response()->json(['data' => new UserResource($user->load(['currentTask', 'position']))]);
+        return response()->json(['data' => new UserResource($user->load(['position']))]);
     }
 
     public function destroy(Request $request, User $user)
@@ -290,6 +290,6 @@ class StaffController extends Controller
 
         $user->update($data);
 
-        return response()->json(['data' => new UserResource($user->load('currentTask'))]);
+        return response()->json(['data' => new UserResource($user)]);
     }
 }

@@ -16,8 +16,6 @@ class SerialNumberResource extends JsonResource
             'has_missing_parts'     => $this->has_missing_parts,
             'location_id'           => $this->location_id,
             'location_name'         => $this->whenLoaded('location', fn() => $this->location?->name),
-            'assigned_to_machine_id'=> $this->assigned_to_machine_id,
-            'machine_name'          => $this->whenLoaded('assignedMachine', fn() => $this->assignedMachine?->name),
             'purchase_date'         => $this->purchase_date?->toDateString(),
             'warranty_expires_at'   => $this->warranty_expires_at?->toDateString(),
             'is_warranty_expired'   => $this->isWarrantyExpired(),

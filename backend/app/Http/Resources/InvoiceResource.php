@@ -15,8 +15,6 @@ class InvoiceResource extends JsonResource
             // Hospital-linked (service invoices)
             'hospital_id'      => $this->hospital_id,
             'hospital'         => new HospitalResource($this->whenLoaded('hospital')),
-            'machine_id'       => $this->machine_id,
-            'machine'          => new MachineResource($this->whenLoaded('machine')),
             // Sales-linked
             'sales_order_id'   => $this->sales_order_id,
             'sales_order_number' => $this->whenLoaded('salesOrder', fn () => $this->salesOrder?->order_number),

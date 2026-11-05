@@ -20,8 +20,6 @@ class HospitalResource extends JsonResource
             'latitude'            => $this->latitude,
             'longitude'           => $this->longitude,
             'zone'                => $this->zone,
-            'machine_count'       => $this->machine_count,
-            'machines_operational' => $this->machines_operational,
             'revenue_monthly'     => $this->revenue_monthly,
             'credit_limit'        => $this->credit_limit,
             'contact_name'        => $this->contact_name,
@@ -30,7 +28,6 @@ class HospitalResource extends JsonResource
             'tin'                 => $this->tin,
             'address'             => $this->address,
             'notes'               => $this->notes,
-            'machines'            => MachineResource::collection($this->whenLoaded('machines')),
         ];
     }
 }

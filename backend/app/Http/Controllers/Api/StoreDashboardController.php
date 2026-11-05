@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\InventoryItem;
-use App\Models\Machine;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequisition;
 use App\Models\StockMovement;
@@ -17,7 +16,7 @@ use Illuminate\Http\Request;
  * The storekeeper's dashboard (main Dashboard, storekeeper role — see the
  * app's UnifiedDashboardScreen / the web DashboardController): stock at a
  * glance, what is waiting on the store (POs to receive, stock-out requests,
- * requisitions, machines in stock), recent movements and where the stock
+ * requisitions), recent movements and where the stock
  * value sits. One call, live data (every action on the store changes it).
  */
 class StoreDashboardController extends Controller
@@ -46,8 +45,6 @@ class StoreDashboardController extends Controller
                 'pos_to_receive'      => (clone $toReceive)->count(),
                 'stock_out_pending'   => StockOutRequest::where('status', 'pending')->count(),
                 'requisitions_open'   => PurchaseRequisition::whereIn('status', ['submitted', 'approved'])->count(),
-                'machines_in_stock'   => Machine::where('lifecycle_stage', 'in_stock')->count(),
-                'machines_allocated'  => Machine::where('lifecycle_stage', 'allocated')->count(),
             ],
             'low_stock' => (clone $low)->orderByRaw('stock_qty::numeric / NULLIF(reorder_level, 0)')->limit(10)
                 ->get(['id', 'name', 'sku', 'stock_qty', 'reorder_level', 'unit_of_measure'])
@@ -61,9 +58,6 @@ class StoreDashboardController extends Controller
                 ->with(['inventoryItem:id,name', 'requester:id,name', 'location:id,name'])->oldest()->limit(6)->get()
                 ->map(fn ($s) => ['id' => $s->id, 'item' => $s->inventoryItem?->name, 'qty' => (int) $s->quantity, 'type' => $s->type,
                     'requested_by' => $s->requester?->name, 'location' => $s->location?->name, 'requested_at' => $s->created_at?->toIso8601String()]),
-            'machines_in_stock' => Machine::where('lifecycle_stage', 'in_stock')->latest('id')->limit(5)
-                ->get(['id', 'serial_no', 'model', 'type'])
-                ->map(fn ($m) => ['id' => $m->id, 'serial_no' => $m->serial_no, 'model' => $m->model, 'type' => $m->type]),
             'recent_movements' => StockMovement::with(['inventoryItem:id,name', 'location:id,name', 'performedBy:id,name'])
                 ->latest('id')->limit(10)->get()
                 ->map(fn ($m) => ['id' => $m->id, 'type' => $m->type, 'item' => $m->inventoryItem?->name, 'qty' => (int) $m->quantity,

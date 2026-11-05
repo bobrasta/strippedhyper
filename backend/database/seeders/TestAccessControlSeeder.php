@@ -114,11 +114,11 @@ class TestAccessControlSeeder extends Seeder
 
         $denyUser = $this->createUser('test.denyoverride@hypermed.tz', 'Test Deny-Override CS', 'cs');
         $denyUser->syncRoles(['cs']);
-        $issueTicket = Permission::where('name', 'services.issue_ticket')->first();
-        if ($issueTicket) {
+        $denied = Permission::where('name', 'screens.customers')->first();
+        if ($denied) {
             DB::table('user_permission_overrides')->insert([
                 'user_id'       => $denyUser->id,
-                'permission_id' => $issueTicket->id,
+                'permission_id' => $denied->id,
                 'effect'        => 'deny',
                 'reason'        => 'Demo account — deny beats the role grant',
                 'created_at'    => now(),

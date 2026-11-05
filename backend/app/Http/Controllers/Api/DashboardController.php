@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\HospitalResource;
-use App\Http\Resources\ServiceTicketResource;
 use App\Http\Resources\QuotationResource;
 use App\Http\Resources\SalesOrderResource;
 use App\Models\Category;
@@ -15,13 +14,11 @@ use App\Models\PurchaseOrder;
 use App\Models\Quotation;
 use App\Models\SalesLead;
 use App\Models\SalesOrder;
-use App\Models\ServiceTicket;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -30,38 +27,10 @@ class DashboardController extends Controller
         return response()->json(['data' => $this->buildOverview()]);
     }
 
-    // Cached KPI slices shared by index()'s flat legacy shape and the
-    // unified dashboard's separately-permission-gated fleet/service
-    // sections (screens.machines vs screens.service) — one query set,
-    // two different consumers reading different sub-keys.
+    // Cached revenue KPIs for the legacy flat /dashboard shape.
     private function overviewKpiSlices(): array
     {
         return Cache::remember('dashboard:kpi', 60, function () {
-            // Two queries instead of five — PostgreSQL FILTER aggregation.
-            // Section 2: "In Stock and Allocated machines are excluded from
-            // the map and the other fleet counts" — a machine sitting in
-            // the warehouse still carries some `status` value (it isn't
-            // actually operational/down/etc. anywhere), so without the
-            // lifecycle_stage filter it was inflating every fleet-uptime
-            // style KPI across every role's dashboard, not just admin's.
-            // Matches MachineController::recomputeHospitalCounts()'s own
-            // lifecycle_stage = 'installed' filter for per-hospital counts.
-            $machines = DB::selectOne("
-                SELECT COUNT(*) FILTER (WHERE lifecycle_stage = 'installed')                          AS total,
-                       COUNT(*) FILTER (WHERE lifecycle_stage = 'installed' AND status = 'operational')   AS operational,
-                       COUNT(*) FILTER (WHERE lifecycle_stage = 'installed' AND status = 'needs_service') AS needs_service,
-                       COUNT(*) FILTER (WHERE lifecycle_stage = 'installed' AND status = 'down')          AS down,
-                       COUNT(*) FILTER (WHERE lifecycle_stage = 'installed' AND status = 'warranty')      AS warranty,
-                       COUNT(*) FILTER (WHERE lifecycle_stage = 'in_stock')                            AS in_stock
-                FROM machines
-            ");
-
-            $tickets = DB::selectOne("
-                SELECT COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) AS open_count,
-                       COUNT(*) FILTER (WHERE status = 'overdue')                AS overdue_count
-                FROM service_tickets
-            ");
-
             $revenueThisMonth = Invoice::where('issue_date', '>=', Carbon::now()->startOfMonth()->toDateString())
                 ->whereIn('status', ['paid', 'partial'])
                 ->sum('amount_paid');
@@ -72,72 +41,29 @@ class DashboardController extends Controller
                 ->sum('amount_paid');
 
             return [
-                'machines' => [
-                    'total_machines'  => (int) $machines->total,
-                    'operational'     => (int) $machines->operational,
-                    'needs_service'   => (int) $machines->needs_service,
-                    'down'            => (int) $machines->down,
-                    'warranty'        => (int) $machines->warranty,
-                    'in_stock'        => (int) $machines->in_stock,
-                    'total_hospitals' => Hospital::count(),
-                ],
-                'tickets' => [
-                    'open_tickets'    => (int) $tickets->open_count,
-                    'overdue_tickets' => (int) $tickets->overdue_count,
-                ],
-                'revenue_mtd' => [
-                    'revenue_this_month' => (int) $revenueThisMonth,
-                    'revenue_last_month' => (int) $revenueLastMonth,
-                ],
+                'total_hospitals'    => Hospital::count(),
+                'revenue_this_month' => (int) $revenueThisMonth,
+                'revenue_last_month' => (int) $revenueLastMonth,
             ];
         });
     }
 
     private function topHospitals()
     {
-        return Hospital::select('id', 'name', 'short_code', 'machines_operational', 'machine_count', 'revenue_monthly', 'latitude', 'longitude', 'region', 'zone')
+        return Hospital::select('id', 'name', 'short_code', 'revenue_monthly', 'latitude', 'longitude', 'region', 'zone')
             ->orderByDesc('revenue_monthly')
             ->limit(5)
             ->get();
     }
 
-    private function recentTickets()
-    {
-        return ServiceTicket::with(['machine', 'hospital', 'assignee'])
-            ->latest()
-            ->limit(5)
-            ->get();
-    }
-
-    // Legacy flat shape index() has always returned — untouched byte-for-byte.
+    // Legacy flat shape index() returns (machine/ticket KPIs removed with
+    // the machines and service modules).
     public function buildOverview(): array
     {
-        $slices = $this->overviewKpiSlices();
-
         return [
-            'kpi'            => array_merge($slices['machines'], $slices['tickets'], $slices['revenue_mtd']),
-            'recent_tickets' => ServiceTicketResource::collection($this->recentTickets()),
-            'top_hospitals'  => HospitalResource::collection($this->topHospitals()),
+            'kpi'           => $this->overviewKpiSlices(),
+            'top_hospitals' => HospitalResource::collection($this->topHospitals()),
         ];
-    }
-
-    // Unified-dashboard section builders — public (not routed) so
-    // UnifiedDashboardController can call them without duplicating the
-    // underlying queries.
-    public function buildFleetSection(): array
-    {
-        return array_merge(
-            $this->overviewKpiSlices()['machines'],
-            ['top_hospitals' => HospitalResource::collection($this->topHospitals())],
-        );
-    }
-
-    public function buildServiceSection(): array
-    {
-        return array_merge(
-            $this->overviewKpiSlices()['tickets'],
-            ['recent_tickets' => ServiceTicketResource::collection($this->recentTickets())],
-        );
     }
 
     public function inventory()

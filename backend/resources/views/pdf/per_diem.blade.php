@@ -79,10 +79,6 @@
     <tr><td class="label">Designation</td><td>{{ $plan->staff_designation_snapshot ?? '—' }}</td></tr>
 </table>
 
-@if($plan->serviceTicket)
-    <p class="muted">Linked ticket: {{ $plan->serviceTicket->ticket_number }}</p>
-@endif
-
 {{-- Section 15.4 step 2: same column order as the XLSX/template —
      No., Date, Region, District, Site name, Activity, Labor, Per diem,
      Transportation fare. --}}

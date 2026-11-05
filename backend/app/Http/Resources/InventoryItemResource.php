@@ -29,7 +29,6 @@ class InventoryItemResource extends JsonResource
             'is_low_stock'         => $this->stock_qty <= $this->reorder_level,
             'supplier'             => $this->supplier,
             'is_active'            => $this->is_active,
-            'creates_machine_record' => (bool) $this->creates_machine_record,
             'warranty_months'      => $this->warranty_months,
             'needs_review'         => (bool) $this->needs_review,
             'created_at'           => $this->created_at?->toIso8601String(),
@@ -50,9 +49,6 @@ class InventoryItemResource extends JsonResource
             'has_tbs'              => (bool) ($this->has_tbs ?? false),
             'specifications'       => $this->specifications ?? new \stdClass(),
             'preferred_supplier_id'=> $this->preferred_supplier_id,
-            'compatible_models'    => $this->whenLoaded('compatibleModels', fn () =>
-                $this->compatibleModels->pluck('machine_model')
-            ),
         ];
     }
 }

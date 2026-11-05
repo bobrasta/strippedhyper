@@ -45,11 +45,6 @@ class PerDiemRequest extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function serviceTicket()
-    {
-        return $this->belongsTo(ServiceTicket::class);
-    }
-
     public function teamLeadReviewer()
     {
         return $this->belongsTo(User::class, 'team_lead_reviewed_by');

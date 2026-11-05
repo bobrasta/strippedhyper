@@ -53,7 +53,7 @@ class InvoiceController extends Controller
     // to zero invoices (they never created a sales order to match against).
     public function index(Request $request)
     {
-        $query = $this->salesQuery($request)->with(['machine', 'salesOrder']);
+        $query = $this->salesQuery($request)->with(['salesOrder']);
         $page = InvoiceResource::collection($this->sorted($query, $request)->paginate($this->perPage($request, 50)));
 
         // All sales footer: totals over the whole filtered set, not one page.
@@ -167,9 +167,6 @@ class InvoiceController extends Controller
         if ($request->filled('sales_order_id')) {
             $query->where('sales_order_id', $request->sales_order_id);
         }
-        if ($request->filled('machine_id')) {
-            $query->where('machine_id', $request->machine_id);
-        }
         if ($request->filled('search')) {
             $q = $request->search;
             $query->where(function ($qb) use ($q) {
@@ -268,7 +265,6 @@ class InvoiceController extends Controller
 
         $data = $request->validate([
             'hospital_id'  => ['nullable', 'exists:hospitals,id'],
-            'machine_id'   => ['nullable', 'exists:machines,id'],
             'client_name'  => ['nullable', 'string', 'max:255'],
             'client_contact' => ['nullable', 'string', 'max:255'],
             'client_email' => ['nullable', 'email'],
@@ -379,7 +375,7 @@ class InvoiceController extends Controller
         });
 
         return response()->json([
-            'data' => new InvoiceResource($invoice->load(['hospital', 'machine', 'salesOrder', 'lineItems', 'payments'])),
+            'data' => new InvoiceResource($invoice->load(['hospital', 'salesOrder', 'lineItems', 'payments'])),
         ], 201);
     }
 
@@ -392,7 +388,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load(['hospital', 'machine', 'salesOrder', 'lineItems', 'payments.recordedBy', 'creator:id,name'])
+        $invoice->load(['hospital', 'salesOrder', 'lineItems', 'payments.recordedBy', 'creator:id,name'])
             ->loadSum(['creditNotes as credited' => fn ($c) => $c->where('status', 'applied')], 'amount');
 
         return response()->json(['data' => new InvoiceResource($invoice)]);
@@ -410,7 +406,6 @@ class InvoiceController extends Controller
             // Switch a draft/proforma between the two, or finalise it.
             'sale_status'     => ['sometimes', 'in:final,draft,proforma'],
             'hospital_id'     => ['sometimes', 'nullable', 'exists:hospitals,id'],
-            'machine_id'      => ['nullable', 'exists:machines,id'],
             'client_name'     => ['sometimes', 'nullable', 'string', 'max:255'],
             'client_contact'  => ['sometimes', 'nullable', 'string', 'max:255'],
             'client_email'    => ['sometimes', 'nullable', 'email'],
@@ -479,7 +474,7 @@ class InvoiceController extends Controller
             }
         });
 
-        return response()->json(['data' => new InvoiceResource($invoice->fresh()->load(['hospital', 'machine', 'salesOrder', 'lineItems', 'payments', 'creator:id,name']))]);
+        return response()->json(['data' => new InvoiceResource($invoice->fresh()->load(['hospital', 'salesOrder', 'lineItems', 'payments', 'creator:id,name']))]);
     }
 
     /** Draft/proforma → a real sale: invoice number, credit check, ledger. */
@@ -523,7 +518,7 @@ class InvoiceController extends Controller
             $this->recomputeTotals($invoice, $financePosting, false);
         });
 
-        return response()->json(['data' => new InvoiceResource($invoice->fresh()->load(['hospital', 'machine', 'salesOrder', 'lineItems', 'payments', 'creator:id,name']))]);
+        return response()->json(['data' => new InvoiceResource($invoice->fresh()->load(['hospital', 'salesOrder', 'lineItems', 'payments', 'creator:id,name']))]);
     }
 
     /**
@@ -633,7 +628,7 @@ class InvoiceController extends Controller
 
         $invoice->update(['status' => 'sent']);
 
-        return response()->json(['data' => new InvoiceResource($invoice->load(['hospital', 'machine', 'salesOrder', 'lineItems', 'payments']))]);
+        return response()->json(['data' => new InvoiceResource($invoice->load(['hospital', 'salesOrder', 'lineItems', 'payments']))]);
     }
 
     public function cancel(Request $request, Invoice $invoice, FinancePostingService $financePosting)
@@ -649,7 +644,7 @@ class InvoiceController extends Controller
             $invoice->update(['status' => 'cancelled']);
         });
 
-        return response()->json(['data' => new InvoiceResource($invoice->load(['hospital', 'machine', 'salesOrder', 'lineItems', 'payments']))]);
+        return response()->json(['data' => new InvoiceResource($invoice->load(['hospital', 'salesOrder', 'lineItems', 'payments']))]);
     }
 
     // ── Payment recording ─────────────────────────────────────────────────────────
@@ -676,7 +671,7 @@ class InvoiceController extends Controller
 
         return response()->json([
             'data'    => new PaymentResource($payment->load('recordedBy')),
-            'invoice' => new InvoiceResource($invoice->fresh()->load(['hospital', 'machine', 'salesOrder', 'lineItems', 'payments'])),
+            'invoice' => new InvoiceResource($invoice->fresh()->load(['hospital', 'salesOrder', 'lineItems', 'payments'])),
         ], 201);
     }
 

@@ -3,9 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AppNotification;
-use App\Models\Machine;
 use App\Models\Quotation;
-use App\Models\ServiceTicket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +13,7 @@ use Tests\TestCase;
 
 // 2026-10-23: engineers prepare quotations (credited to them, no orders or
 // invoices), and the Director's staff contributions record counts who did
-// what — quotations, those that became invoices, installations, services.
+// what — quotations, those that became invoices, deals won.
 //
 // Needs a migrated Postgres database with the seeded roles; skipped on
 // SQLite. The new migration runs inside the test transaction if needed.
@@ -100,18 +98,15 @@ class EngineerQuotationsAndContributionsTest extends TestCase
             'status' => 'sent', 'total' => 1_500_000, 'issue_date' => now()->toDateString(),
         ]));
 
-        $machine = Machine::first() ?? $this->markTestSkipped('needs a machine row');
-        Machine::whereKey($machine->id)->update(['installed_by' => $this->engineer->id, 'installed_at' => now()]);
-        $ticket = ServiceTicket::where('type', 'repair')->first() ?? $this->markTestSkipped('needs a repair ticket');
-        ServiceTicket::whereKey($ticket->id)->update(['assigned_to' => $this->engineer->id, 'status' => 'resolved', 'resolved_at' => now()]);
-
         // Only the Director/CTO see it.
         $this->getJson('/api/v1/contributions')->assertForbidden();
 
         Sanctum::actingAs($this->user('Director Test', 'super_admin'));
         $row = collect($this->getJson('/api/v1/contributions')->assertOk()->json('data.people'))->firstWhere('id', $this->engineer->id);
-        $this->assertSame([3, 1, 1, 1, 1_500_000],
-            [$row['quotations'], $row['quotations_invoiced'], $row['installations'], $row['services'], $row['invoiced_value']]);
+        $this->assertSame([3, 1, 1_500_000],
+            [$row['quotations'], $row['quotations_invoiced'], $row['invoiced_value']]);
+        $this->assertArrayNotHasKey('installations', $row);
+        $this->assertArrayNotHasKey('services', $row);
 
         $items = $this->getJson("/api/v1/contributions/{$this->engineer->id}/quotations_invoiced")->assertOk()->json('data.items');
         $this->assertSame([[$won['quotation_number'], 'INV-TEST-1']], collect($items)->map(fn ($i) => [$i['reference'], $i['invoice']])->all());

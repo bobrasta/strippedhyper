@@ -38,7 +38,7 @@ class StoreDashboardTest extends TestCase
         Sanctum::actingAs($this->user('storekeeper'));
 
         $r = $this->getJson('/api/v1/dashboard/store')->assertOk();
-        foreach (['kpis', 'waiting', 'low_stock', 'pos_to_receive', 'stock_out_pending', 'machines_in_stock', 'recent_movements', 'top_value', 'by_category'] as $k) {
+        foreach (['kpis', 'waiting', 'low_stock', 'pos_to_receive', 'stock_out_pending', 'recent_movements', 'top_value', 'by_category'] as $k) {
             $r->assertJsonStructure(['data' => [$k]]);
         }
         $this->assertContains('SD low reagent', array_column($r->json('data.low_stock'), 'name'));

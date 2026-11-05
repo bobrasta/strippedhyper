@@ -14,7 +14,7 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = InventoryItem::with(['compatibleModels', 'category', 'stockLevels.location'])
+        $query = InventoryItem::with(['category', 'stockLevels.location'])
             ->where('is_active', true);
 
         if ($request->filled('category_id')) {
@@ -22,9 +22,6 @@ class InventoryController extends Controller
         }
         if ($request->boolean('low_stock')) {
             $query->whereColumn('stock_qty', '<=', 'reorder_level');
-        }
-        if ($request->filled('creates_machine_record')) {
-            $query->where('creates_machine_record', $request->boolean('creates_machine_record'));
         }
         if ($request->filled('supplier')) {
             $query->where('supplier', $request->supplier);
@@ -63,14 +60,9 @@ class InventoryController extends Controller
             'stock_qty'           => ['required', 'integer', 'min:0'],
             'reorder_level'       => ['required', 'integer', 'min:0'],
             'supplier'            => ['nullable', 'string'],
-            'creates_machine_record' => ['nullable', 'boolean'],
             'warranty_months'     => ['nullable', 'integer', 'min:0'],
-            'compatible_models'   => ['nullable', 'array'],
-            'compatible_models.*' => ['string'],
         ]);
 
-        $models = $data['compatible_models'] ?? [];
-        unset($data['compatible_models']);
         // The unit cost's currency (TZS unless given). 'currency' was never
         // stored (not fillable); older apps sending it mean the cost's.
         $data['cost_currency'] = strtoupper($data['cost_currency'] ?? $data['currency'] ?? 'TZS');
@@ -78,15 +70,10 @@ class InventoryController extends Controller
 
         $item = InventoryItem::create($data);
 
-        foreach ($models as $model) {
-            $item->compatibleModels()->create(['machine_model' => $model]);
-        }
-
-        return response()->json(['data' => new InventoryItemResource($item->load(['compatibleModels', 'category']))], 201);
+        return response()->json(['data' => new InventoryItemResource($item->load(['category']))], 201);
     }
 
-    // Minimal-friction creation for a part discovered mid-service that isn't
-    // catalogued yet — auto-fills everything store() otherwise requires and
+    // Minimal-friction creation for a part that isn't catalogued yet — auto-fills everything store() otherwise requires and
     // flags the item for inventory admin to properly fill in later.
     public function quickCreate(Request $request)
     {
@@ -112,7 +99,7 @@ class InventoryController extends Controller
     // Route param is {inventory} — variable name must match
     public function show(InventoryItem $inventory)
     {
-        $inventory->load(['compatibleModels', 'category', 'stockLevels.location']);
+        $inventory->load(['category', 'stockLevels.location']);
 
         return response()->json(['data' => new InventoryItemResource($inventory)]);
     }
@@ -133,7 +120,6 @@ class InventoryController extends Controller
             'reorder_level'   => ['sometimes', 'integer', 'min:0'],
             'supplier'        => ['nullable', 'string'],
             'is_active'       => ['sometimes', 'boolean'],
-            'creates_machine_record' => ['sometimes', 'boolean'],
             'warranty_months' => ['nullable', 'integer', 'min:0'],
             'needs_review'    => ['sometimes', 'boolean'],
         ]);
@@ -143,7 +129,7 @@ class InventoryController extends Controller
         }
         $inventory->update($data);
 
-        return response()->json(['data' => new InventoryItemResource($inventory->load(['compatibleModels', 'category']))]);
+        return response()->json(['data' => new InventoryItemResource($inventory->load(['category']))]);
     }
 
     public function destroy(Request $request, InventoryItem $inventory)
@@ -170,62 +156,34 @@ class InventoryController extends Controller
         $stockService->adjust($inventoryItem, $location, $data['new_quantity'], $data['reason'] ?? 'Manual adjustment');
 
         return response()->json(['data' => new InventoryItemResource(
-            $inventoryItem->fresh()->load(['compatibleModels', 'category', 'stockLevels.location'])
+            $inventoryItem->fresh()->load(['category', 'stockLevels.location'])
         )]);
     }
 
-    // One row per individually tracked unit, oldest-received first — the
-    // "20 X-rays: track each one sold where / installed by / signed off by
-    // whom, until the count reaches zero" case. Assembled server-side from
-    // SerialNumber (received) + Machine (sold/installed/signed-off), since
-    // those already carry the full chain (see MachineRegistrationService /
-    // ServiceTicketController::resolve() / MachineController::signOff()).
+    // One row per individually tracked unit, oldest-received first —
+    // received (SerialNumber) plus sold/issued from the serial's own
+    // consumed_reference_* columns. installed/signed_off are always null
+    // and is_equipment false now that the machines module is removed; the
+    // keys stay so existing clients keep parsing the same shape.
     public function history(InventoryItem $inventoryItem)
     {
-        $serials = $inventoryItem->serialNumbers()
-            ->with([
-                'assignedMachine.hospital',
-                'assignedMachine.salesOrder',
-                'assignedMachine.installedBy',
-                'assignedMachine.signedOffBy',
-            ])
-            ->orderBy('id')
-            ->get();
+        $serials = $inventoryItem->serialNumbers()->orderBy('id')->get();
 
-        $history = $serials->map(function (SerialNumber $serial) {
-            $machine = $serial->assignedMachine;
-
-            return [
-                'serial_number' => $serial->serial_number,
-                'status'        => $serial->status,
-                'received_at'   => ($serial->purchase_date ?? $serial->created_at)?->toDateString(),
-                'sold' => $machine?->salesOrder ? [
-                    'sales_order_id'     => $machine->salesOrder->id,
-                    'sales_order_number' => $machine->salesOrder->order_number,
-                    'hospital_name'      => $machine->hospital?->name,
-                    'delivered_at'       => $machine->created_at?->toDateString(),
-                ] : $this->genericConsumption($serial),
-                'installed' => $machine?->installed_at ? [
-                    'by'   => $machine->installedBy?->name,
-                    'at'   => $machine->installed_at?->toIso8601String(),
-                ] : null,
-                'signed_off' => $machine?->signed_off_at ? [
-                    'by' => $machine->signedOffBy?->name,
-                    'at' => $machine->signed_off_at?->toIso8601String(),
-                ] : null,
-                // Equipment (has a Machine record) goes through install/sign-off;
-                // everything else just has received/sold, so the Flutter card
-                // knows not to render steps that will never apply.
-                'is_equipment'   => $machine !== null,
-                'machine_status' => $machine?->status,
-            ];
-        });
+        $history = $serials->map(fn (SerialNumber $serial) => [
+            'serial_number'  => $serial->serial_number,
+            'status'         => $serial->status,
+            'received_at'    => ($serial->purchase_date ?? $serial->created_at)?->toDateString(),
+            'sold'           => $this->genericConsumption($serial),
+            'installed'      => null,
+            'signed_off'     => null,
+            'is_equipment'   => false,
+            'machine_status' => null,
+        ]);
 
         return response()->json(['data' => $history]);
     }
 
-    // Non-equipment items (no Machine record) still get a lightweight
-    // "sold/issued" entry from SerialNumber's own consumed_reference_*
+    // A lightweight "sold/issued" entry from SerialNumber's own consumed_reference_*
     // columns (see StockService::consumeSerials()) — resolves a couple of
     // known reference types for a readable label, falls back to a generic
     // one for anything else so a new reference type never breaks History.
@@ -239,9 +197,6 @@ class InventoryController extends Controller
             \App\Models\SalesOrder::class => optional(
                 \App\Models\SalesOrder::find($serial->consumed_reference_id)
             )->order_number,
-            \App\Models\ServiceTicket::class => optional(
-                \App\Models\ServiceTicket::find($serial->consumed_reference_id)
-            )->ticket_number,
             default => class_basename($serial->consumed_reference_type) . ' #' . $serial->consumed_reference_id,
         };
 

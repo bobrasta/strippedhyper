@@ -47,11 +47,6 @@ class InventoryItem extends Model
         return $this->hasMany(StockLevel::class);
     }
 
-    public function compatibleModels()
-    {
-        return $this->hasMany(InventoryItemMachineModel::class);
-    }
-
     public function images()
     {
         return $this->hasMany(InventoryItemImage::class)->orderBy('sort_order');
@@ -82,11 +77,6 @@ class InventoryItem extends Model
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class)->latest();
-    }
-
-    public function partsUsed()
-    {
-        return $this->hasMany(PartUsed::class);
     }
 
     public function batchLots()

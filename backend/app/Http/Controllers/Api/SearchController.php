@@ -11,7 +11,6 @@ use App\Models\InventoryItem;
 use App\Models\Invoice;
 use App\Models\Letter;
 use App\Models\Location;
-use App\Models\Machine;
 use App\Models\Meeting;
 use App\Models\NestTender;
 use App\Models\PurchaseOrder;
@@ -19,7 +18,6 @@ use App\Models\PurchaseRequisition;
 use App\Models\Quotation;
 use App\Models\SalesLead;
 use App\Models\SalesOrder;
-use App\Models\ServiceTicket;
 use App\Models\Shipment;
 use App\Models\Supplier;
 use App\Models\Tender;
@@ -64,21 +62,9 @@ class SearchController extends Controller
             }
         };
 
-        if ($can('machines')) {
-            $add('machine', Machine::query()->with('hospital:id,name'), ['model', 'serial_no', 'type'],
-                fn (Machine $m) => ['title' => $m->model ?: $m->type, 'subtitle' => trim(($m->serial_no ?? '') . ' · ' . ($m->hospital?->name ?? '—'), ' ·')],
-                ['hospital' => ['name']]);
-        }
-
-        if ($can('hospitals', 'customers')) {
+        if ($can('customers')) {
             $add('hospital', Hospital::query(), ['name', 'short_code', 'region', 'district'],
                 fn (Hospital $h) => ['title' => $h->name, 'subtitle' => collect([$h->district ?? null, $h->region])->filter()->implode(', ') ?: $h->type]);
-        }
-
-        if ($can('service')) {
-            $add('service_ticket', ServiceTicket::query()->with('machine:id,model,hospital_id', 'machine.hospital:id,name'), ['ticket_number', 'description'],
-                fn (ServiceTicket $t) => ['title' => $t->ticket_number, 'subtitle' => trim(($t->machine?->model ?? '') . ' · ' . ($t->machine?->hospital?->name ?? $t->description ?? ''), ' ·')],
-                ['machine.hospital' => ['name']]);
         }
 
         if ($can('inventory', 'purchases', 'sales')) {

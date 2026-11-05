@@ -160,24 +160,6 @@ class NotificationTemplateSeeder extends Seeder
                 "{item_name} ({item_sku}) is at {stock_qty}, at or below its reorder level of {reorder_level}.",
                 'Procurement/storekeeper — an item hit its reorder level'],
 
-            // ── Service tickets ───────────────────────────────────────────
-            ['ticket.assigned_technician', 'ticket_assigned', 'Service Ticket Assigned',
-                "You've been assigned {ticket_number} — {machine}{description_suffix}",
-                'Technician — a service ticket was assigned to them'],
-            ['ticket.assigned_team_lead_notice', 'ticket_assigned', 'Technician Deployed',
-                "{assignee_name} was assigned to {ticket_number} — {machine}.",
-                'Team lead — a technician was deployed to a ticket'],
-            ['ticket.billing_overridden', 'ticket_billing_overridden', 'Ticket Billing Decision Changed',
-                "Ticket #{ticket_number} was reclassified as {label} by {actor_name}.",
-                'Finance — a ticket\'s warranty/billable classification changed'],
-            // Section 6: "requester and CTO are notified when the ticket is
-            // fully complete." notification_type reuses 'ticket_updated'
-            // (already in the notifications type check constraint) rather
-            // than adding a new one just for this.
-            ['ticket.fully_resolved', 'ticket_updated', 'Service Ticket Resolved',
-                "Ticket #{ticket_number} ({machine_label}) has been resolved.",
-                'Assignee and CTO — a service ticket (possibly covering several machines) was fully resolved'],
-
             // ── Sales orders ──────────────────────────────────────────────
             ['sales_order.stock_pull_required', 'stock_pull_required', 'Order Ready to Pack',
                 "{order_number} for {client_name} is confirmed — ready stock for delivery.",

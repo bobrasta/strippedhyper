@@ -3,17 +3,17 @@
 namespace Database\Seeders;
 
 use App\Models\Hospital;
-use App\Models\Machine;
 use Illuminate\Database\Seeder;
 
 /**
- * Real installed-base import -- 231 ultrasound + X-ray machines across
- * 231 facilities in ~26 Tanzania regions, sourced from the user's own
- * ALPINION ultrasound register and the MSD / TAMISEMI three-phase X-ray
- * asset lists (government facility program data). Coordinates are
- * regional-capital centroids with a small deterministic per-facility
- * jitter -- the source lists give district/region, not GPS, so this is
- * an approximation good enough for the fleet map, not survey-grade.
+ * Real client-facility import -- 231 facilities in ~26 Tanzania regions
+ * (the customers behind the company's ultrasound + X-ray installed base,
+ * from the ALPINION register and MSD / TAMISEMI asset lists). Only the
+ * hospital (customer) rows are created; the machine records this seeder
+ * used to create went with the machines module. machine_count /
+ * machines_operational are kept as stored legacy counts (CustomerController
+ * uses them to tell clients from registry prospects). Coordinates are
+ * regional-capital centroids with a small deterministic jitter.
  *
  * Guarded like the other seeders in this chain -- no-ops once the first
  * imported hospital exists, safe to leave in the deploy chain.
@@ -33,7 +33,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.332723, 'longitude' => 36.624365,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757252372',
-                'machines' => [['serial_no' => 'DRS2440032A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Karatu DH', 'short_code' => 'KADH', 'type' => 'public',
@@ -41,7 +40,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3406795, 'longitude' => 36.6829309,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0767462222',
-                'machines' => [['serial_no' => 'DRH2240052A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ketumbaine HC', 'short_code' => 'KEHC', 'type' => 'public',
@@ -49,7 +47,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3543143, 'longitude' => 36.684883,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0789042161',
-                'machines' => [['serial_no' => 'DRS2450080A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Levolosi HC', 'short_code' => 'LEHC', 'type' => 'public',
@@ -57,7 +54,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3851537, 'longitude' => 36.7178104,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0657790931',
-                'machines' => [['serial_no' => 'DRS2470096A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-01-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Longido DH', 'short_code' => 'LODH', 'type' => 'public',
@@ -65,7 +61,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.312509, 'longitude' => 36.7634636,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0743238388',
-                'machines' => [['serial_no' => 'DRH2230036A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Meru DH', 'short_code' => 'MEDH', 'type' => 'public',
@@ -73,7 +68,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3748911, 'longitude' => 36.671545,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755341304',
-                'machines' => [['serial_no' => 'DRH2230035A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Monduli DH', 'short_code' => 'MODH', 'type' => 'public',
@@ -81,7 +75,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.303287, 'longitude' => 36.6904983,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0627291358',
-                'machines' => [['serial_no' => 'DRH2240056A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mto Wa Mbu HC', 'short_code' => 'MTWAM', 'type' => 'public',
@@ -89,7 +82,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3908979, 'longitude' => 36.6243353,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0765973439',
-                'machines' => [['serial_no' => 'DRH2240055A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Mwandet HC', 'short_code' => 'MWHC', 'type' => 'public',
@@ -97,7 +89,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.4231261, 'longitude' => 36.6059618,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0657377183',
-                'machines' => [['serial_no' => 'DRS2440018A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Oldonyosambuu HC', 'short_code' => 'OLHC', 'type' => 'public',
@@ -105,7 +96,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3507901, 'longitude' => 36.7688419,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0758587734',
-                'machines' => [['serial_no' => 'DRS2440022A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Oltrumet DH', 'short_code' => 'OLDH', 'type' => 'public',
@@ -113,7 +103,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.4069644, 'longitude' => 36.645176,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0713378580',
-                'machines' => [['serial_no' => 'DRS2440016A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bunju HC', 'short_code' => 'BUHC', 'type' => 'public',
@@ -121,7 +110,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8532889, 'longitude' => 39.1782536,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0718621621',
-                'machines' => [['serial_no' => 'DRH2280149A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kigamboni DH', 'short_code' => 'KIDH', 'type' => 'public',
@@ -129,7 +117,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.764682, 'longitude' => 39.2844004,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0756284418',
-                'machines' => [['serial_no' => 'DRH2230020A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kilakala HC', 'short_code' => 'KIHC', 'type' => 'public',
@@ -137,7 +124,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7463171, 'longitude' => 39.1647417,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0719708687',
-                'machines' => [['serial_no' => 'DRS2440030A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kimara', 'short_code' => 'KI', 'type' => 'public',
@@ -145,7 +131,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7869935, 'longitude' => 39.2260511,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Wilfred Kazimoto', 'contact_phone' => null,
-                'machines' => [['serial_no' => 'L10095', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2025-12-12', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kimbiji HC', 'short_code' => 'KIHC2', 'type' => 'public',
@@ -153,7 +138,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8222746, 'longitude' => 39.2575087,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0766454615',
-                'machines' => [['serial_no' => 'DRH2230026A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-01-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kivule DH', 'short_code' => 'KIDH2', 'type' => 'public',
@@ -161,7 +145,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7158633, 'longitude' => 39.2814922,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0754298084',
-                'machines' => [['serial_no' => 'DRH2230024A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Magomeni HC', 'short_code' => 'MAHC', 'type' => 'public',
@@ -169,7 +152,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8271547, 'longitude' => 39.1520249,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0674444173',
-                'machines' => [['serial_no' => 'DRS2440024A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-01-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mbezi HC', 'short_code' => 'MBHC', 'type' => 'public',
@@ -177,7 +159,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7409555, 'longitude' => 39.272026,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Moi', 'contact_phone' => '717108342.0',
-                'machines' => [['serial_no' => 'L10090', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-13', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mnazi Mmoja Hospital', 'short_code' => 'MNMMH', 'type' => 'public',
@@ -185,7 +166,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7921846, 'longitude' => 39.2161967,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => null,
-                'machines' => [['serial_no' => 'DRS2570051A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Moi', 'short_code' => 'MO', 'type' => 'public',
@@ -193,7 +173,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8425356, 'longitude' => 39.2575207,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Daniel', 'contact_phone' => '715440718.0',
-                'machines' => [['serial_no' => 'L10098', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2025-06-19', 'status' => 'operational']],
             ],
             [
                 'name' => 'Pugu HC', 'short_code' => 'PUHC', 'type' => 'public',
@@ -201,7 +180,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8402967, 'longitude' => 39.2169244,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0716971338',
-                'machines' => [['serial_no' => 'DRS2450060A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Segerea HC', 'short_code' => 'SEHC', 'type' => 'public',
@@ -209,7 +187,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8253584, 'longitude' => 39.2373789,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0655034649',
-                'machines' => [['serial_no' => 'DRS2450058A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Sinza DH', 'short_code' => 'SIDH', 'type' => 'public',
@@ -217,7 +194,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8038575, 'longitude' => 39.1626937,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0623777596',
-                'machines' => [['serial_no' => 'DRH2240042A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ubungo DH', 'short_code' => 'UBDH', 'type' => 'public',
@@ -225,7 +201,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.838186, 'longitude' => 39.1906256,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0756828567',
-                'machines' => [['serial_no' => 'DRH2230032A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Vijibweni HC', 'short_code' => 'VIHC', 'type' => 'public',
@@ -233,7 +208,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8156342, 'longitude' => 39.28783,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0717088038',
-                'machines' => [['serial_no' => 'DRS2580059A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Yombo Vituka HC', 'short_code' => 'YOVIH', 'type' => 'public',
@@ -241,7 +215,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8144104, 'longitude' => 39.1272887,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => null,
-                'machines' => [['serial_no' => 'DRS2440035A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bahi DH', 'short_code' => 'BADH', 'type' => 'public',
@@ -249,7 +222,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.1178211, 'longitude' => 35.6951955,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0753980458',
-                'machines' => [['serial_no' => 'DRH2240045A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Chamwino DH', 'short_code' => 'CHDH', 'type' => 'public',
@@ -257,7 +229,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.2309106, 'longitude' => 35.6812405,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0712718109',
-                'machines' => [['serial_no' => 'DRH2230023A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Chamwino HC', 'short_code' => 'CHHC', 'type' => 'public',
@@ -265,7 +236,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.1607523, 'longitude' => 35.7950159,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0742441368',
-                'machines' => [['serial_no' => 'DRS2440036A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Chemba DH', 'short_code' => 'CHDH2', 'type' => 'public',
@@ -273,7 +243,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.1976364, 'longitude' => 35.8253809,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0626412243',
-                'machines' => [['serial_no' => 'DRH2280212A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Dodoma HC', 'short_code' => 'DOHC', 'type' => 'public',
@@ -281,7 +250,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.2584467, 'longitude' => 35.6723255,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755847427',
-                'machines' => [['serial_no' => 'DRS2450052A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Dodoma Jiji', 'short_code' => 'DOJI', 'type' => 'public',
@@ -289,7 +257,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.1541074, 'longitude' => 35.6971734,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755847427',
-                'machines' => [['serial_no' => 'DRS2450053A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-25', 'status' => 'operational']],
             ],
             [
                 'name' => 'Hombolo HC', 'short_code' => 'HOHC', 'type' => 'public',
@@ -297,7 +264,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.2603059, 'longitude' => 35.7689061,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0719784065',
-                'machines' => [['serial_no' => 'DRH2280216A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kibaigwa HC', 'short_code' => 'KIHC3', 'type' => 'public',
@@ -305,7 +271,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.1469652, 'longitude' => 35.7431745,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0685249128',
-                'machines' => [['serial_no' => 'DRS2450051A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kondoa DH', 'short_code' => 'KODH', 'type' => 'public',
@@ -313,7 +278,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.2088665, 'longitude' => 35.7795048,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0676576342',
-                'machines' => [['serial_no' => 'DRH2280214A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Mauno HC', 'short_code' => 'MAHC2', 'type' => 'public',
@@ -321,7 +285,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.1402282, 'longitude' => 35.7171078,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0759407487',
-                'machines' => [['serial_no' => 'DRS2450070A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-11-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Mwangaza Polyclinic', 'short_code' => 'MWPO', 'type' => 'public',
@@ -329,7 +292,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.1232816, 'longitude' => 35.7586012,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Salum', 'contact_phone' => '752006365.0',
-                'machines' => [['serial_no' => 'L10643', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-01-20', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nkonze HC', 'short_code' => 'NKHC', 'type' => 'public',
@@ -337,7 +299,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.245045, 'longitude' => 35.6973519,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0758347146',
-                'machines' => [['serial_no' => 'DRS2450057A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Uhuru Hospital', 'short_code' => 'UHHO', 'type' => 'public',
@@ -345,7 +306,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.0904073, 'longitude' => 35.7285705,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0744887036',
-                'machines' => [['serial_no' => 'DRH2240043A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bukombe', 'short_code' => 'BU', 'type' => 'public',
@@ -353,7 +313,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.8609069, 'longitude' => 32.1933462,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Katinda', 'contact_phone' => '784481447.0',
-                'machines' => [['serial_no' => '2528012', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-20', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bukombe DH', 'short_code' => 'BUDH', 'type' => 'public',
@@ -361,7 +320,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.7943317, 'longitude' => 32.1732042,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0784481447',
-                'machines' => [['serial_no' => 'DRH2240051A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bwanga HC', 'short_code' => 'BWHC', 'type' => 'public',
@@ -369,7 +327,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.8612391, 'longitude' => 32.0940706,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757250091',
-                'machines' => [['serial_no' => 'DRS2440027A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Chato DH', 'short_code' => 'CHDH3', 'type' => 'public',
@@ -377,7 +334,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.8512195, 'longitude' => 32.1332799,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0756173825',
-                'machines' => [['serial_no' => 'DRS2420010A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Geita TC', 'short_code' => 'GETC', 'type' => 'public',
@@ -385,7 +341,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.8842219, 'longitude' => 32.2292079,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Josevic', 'contact_phone' => '763268467.0',
-                'machines' => [['serial_no' => '2528013', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-24', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mbogwe DH', 'short_code' => 'MBDH', 'type' => 'public',
@@ -393,7 +348,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.9375296, 'longitude' => 32.1184278,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0788609687',
-                'machines' => [['serial_no' => 'DRH2240050A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nyang\'wale DH', 'short_code' => 'NYDH', 'type' => 'public',
@@ -401,7 +355,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.8073639, 'longitude' => 32.1602869,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0713007234',
-                'machines' => [['serial_no' => 'DRH 2240077A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nzera DH', 'short_code' => 'NZDH', 'type' => 'public',
@@ -409,7 +362,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.9442331, 'longitude' => 32.2450301,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0627228562',
-                'machines' => [['serial_no' => 'DRH2240047A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Frelimo DH', 'short_code' => 'FRDH', 'type' => 'public',
@@ -417,7 +369,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -7.7544272, 'longitude' => 35.7371298,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0754570540',
-                'machines' => [['serial_no' => 'DRH2280199A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => null, 'status' => 'operational']],
             ],
             [
                 'name' => 'Idodi HC', 'short_code' => 'IDHC', 'type' => 'public',
@@ -425,7 +376,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -7.823336, 'longitude' => 35.6748323,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0766664751',
-                'machines' => [['serial_no' => 'DRS2450081A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Iringa DH', 'short_code' => 'IRDH', 'type' => 'public',
@@ -433,7 +383,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -7.8288543, 'longitude' => 35.6596279,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0714461582',
-                'machines' => [['serial_no' => 'DRH2280203A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bukoba DH', 'short_code' => 'BUDH2', 'type' => 'public',
@@ -441,7 +390,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.3508297, 'longitude' => 31.7328887,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0754546036',
-                'machines' => [['serial_no' => 'DRH2240084A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Katoke DH', 'short_code' => 'KADH2', 'type' => 'public',
@@ -449,7 +397,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.2771293, 'longitude' => 31.8517031,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0696207912',
-                'machines' => [['serial_no' => 'DRH2240058A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kayanga HC', 'short_code' => 'KAHC', 'type' => 'public',
@@ -457,7 +404,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.2719404, 'longitude' => 31.8289263,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0676684133',
-                'machines' => [['serial_no' => 'DRS2440025A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-11-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kyerwa DH', 'short_code' => 'KYDH', 'type' => 'public',
@@ -465,7 +411,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.3746137, 'longitude' => 31.7378465,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0627702399',
-                'machines' => [['serial_no' => 'DRH2240071A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nyakahanga Ddh', 'short_code' => 'NYDD', 'type' => 'public',
@@ -473,7 +418,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.4066573, 'longitude' => 31.7402003,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757605285',
-                'machines' => [['serial_no' => 'DRH2240063A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nyakanazi HC', 'short_code' => 'NYHC', 'type' => 'public',
@@ -481,7 +425,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.3552345, 'longitude' => 31.8453643,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0743670838',
-                'machines' => [['serial_no' => 'DRH2240085A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nyamiaga DH', 'short_code' => 'NYDH2', 'type' => 'public',
@@ -489,7 +432,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.3684147, 'longitude' => 31.8716818,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0753483382',
-                'machines' => [['serial_no' => 'DRH2240074A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Zamzam HC', 'short_code' => 'ZAHC', 'type' => 'public',
@@ -497,7 +439,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.3909736, 'longitude' => 31.7615603,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0738052098',
-                'machines' => [['serial_no' => 'DRH2240473A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ilembo HC', 'short_code' => 'ILHC', 'type' => 'public',
@@ -505,7 +446,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3478087, 'longitude' => 31.0829895,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0717197396',
-                'machines' => [['serial_no' => 'DRH2280188A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Ilunde HC', 'short_code' => 'ILHC2', 'type' => 'public',
@@ -513,7 +453,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.4137925, 'longitude' => 31.1073699,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0718870953',
-                'machines' => [['serial_no' => 'DRS2440044A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-25', 'status' => 'operational']],
             ],
             [
                 'name' => 'Inyonga B HC', 'short_code' => 'INBH', 'type' => 'public',
@@ -521,7 +460,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3909456, 'longitude' => 31.1434032,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0718870953',
-                'machines' => [['serial_no' => 'DRS2450072A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-25', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mlele DH', 'short_code' => 'MLDH', 'type' => 'public',
@@ -529,7 +467,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3893643, 'longitude' => 31.1275011,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0718870953',
-                'machines' => [['serial_no' => 'DRH2280189A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mpanda MC', 'short_code' => 'MPMC', 'type' => 'public',
@@ -537,7 +474,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3663956, 'longitude' => 31.1381103,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Eddy', 'contact_phone' => '783867703.0',
-                'machines' => [['serial_no' => '2524007', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-17', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mpanda Mh', 'short_code' => 'MPMH', 'type' => 'public',
@@ -545,7 +481,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3315552, 'longitude' => 31.1157521,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0756501678',
-                'machines' => [['serial_no' => 'DRS2440040A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-11-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mpimbwe DH', 'short_code' => 'MPDH', 'type' => 'public',
@@ -553,7 +488,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3827963, 'longitude' => 31.0646184,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0753751640',
-                'machines' => [['serial_no' => 'DRH2280182A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nsimbo DH', 'short_code' => 'NSDH', 'type' => 'public',
@@ -561,7 +495,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3448046, 'longitude' => 31.1464847,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0766916221',
-                'machines' => [['serial_no' => 'DRH2280183A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Tanganyika DH', 'short_code' => 'TADH', 'type' => 'public',
@@ -569,7 +502,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.3217428, 'longitude' => 31.0906209,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0769021584',
-                'machines' => [['serial_no' => 'DRS2440042A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bitare HC', 'short_code' => 'BIHC', 'type' => 'public',
@@ -577,7 +509,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8063007, 'longitude' => 29.5420732,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0625500754',
-                'machines' => [['serial_no' => 'DRH2240057A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Buhigwe DH', 'short_code' => 'BUDH3', 'type' => 'public',
@@ -585,7 +516,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9562607, 'longitude' => 29.6275968,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0659129010',
-                'machines' => [['serial_no' => 'DRH2240069A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kagezi HC', 'short_code' => 'KAHC2', 'type' => 'public',
@@ -593,7 +523,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8556266, 'longitude' => 29.5475254,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0717421248',
-                'machines' => [['serial_no' => 'DRH2240082A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kakonko DH', 'short_code' => 'KADH3', 'type' => 'public',
@@ -601,7 +530,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.93483, 'longitude' => 29.5791476,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0615127143',
-                'machines' => [['serial_no' => 'DRH2240054A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kasulu DH', 'short_code' => 'KADH4', 'type' => 'public',
@@ -609,7 +537,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8738701, 'longitude' => 29.6245058,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0768296400',
-                'machines' => [['serial_no' => 'DRH2280206A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kibondo DH', 'short_code' => 'KIDH3', 'type' => 'public',
@@ -617,7 +544,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8952264, 'longitude' => 29.5409002,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0759210290',
-                'machines' => [['serial_no' => 'DRS2450083A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-09-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kigoma DH', 'short_code' => 'KIDH4', 'type' => 'public',
@@ -625,7 +551,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8247647, 'longitude' => 29.651869,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0758619684',
-                'machines' => [['serial_no' => 'DRH2240061A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Mwayaya HC', 'short_code' => 'MWHC2', 'type' => 'public',
@@ -633,7 +558,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9000613, 'longitude' => 29.603261,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0653990710',
-                'machines' => [['serial_no' => 'DRS2450078A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ujiji Mh', 'short_code' => 'UJMH', 'type' => 'public',
@@ -641,7 +565,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9066395, 'longitude' => 29.6053371,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0763763576',
-                'machines' => [['serial_no' => 'DRS2440023A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Uvinza DH', 'short_code' => 'UVDH', 'type' => 'public',
@@ -649,7 +572,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9176677, 'longitude' => 29.5398522,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0623351329',
-                'machines' => [['serial_no' => 'DRH2240068A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Hai DH', 'short_code' => 'HADH', 'type' => 'public',
@@ -657,7 +579,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.2957741, 'longitude' => 37.3591217,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765574103',
-                'machines' => [['serial_no' => 'DRS2450079A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Hedaru HC', 'short_code' => 'HEHC', 'type' => 'public',
@@ -665,7 +586,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3017438, 'longitude' => 37.2798089,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0753265427',
-                'machines' => [['serial_no' => 'DRS2450073A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Himo HC', 'short_code' => 'HIHC', 'type' => 'public',
@@ -673,7 +593,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.2677409, 'longitude' => 37.378027,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Jackline Shirima', 'contact_phone' => '676946374.0',
-                'machines' => [['serial_no' => '2537014', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-26', 'status' => 'operational']],
             ],
             [
                 'name' => 'Himo HC', 'short_code' => 'HIHC2', 'type' => 'public',
@@ -681,7 +600,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3205841, 'longitude' => 37.4025576,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0672790740',
-                'machines' => [['serial_no' => 'DRS2450082A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Karume HC', 'short_code' => 'KAHC3', 'type' => 'public',
@@ -689,7 +607,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.4218959, 'longitude' => 37.267504,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0659540148',
-                'machines' => [['serial_no' => 'DRH2230029A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kcmc', 'short_code' => 'KC', 'type' => 'public',
@@ -697,7 +614,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3101935, 'longitude' => 37.4172768,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0754776490',
-                'machines' => [['serial_no' => 'DRS2570050A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-02-04', 'status' => 'operational']],
             ],
             [
                 'name' => 'Long\'oi HC', 'short_code' => 'LOHC', 'type' => 'public',
@@ -705,7 +621,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3455354, 'longitude' => 37.2570236,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0752451800',
-                'machines' => [['serial_no' => 'DRH2280204A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mkuu HC', 'short_code' => 'MKHC', 'type' => 'public',
@@ -713,7 +628,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.2686785, 'longitude' => 37.404591,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757306044',
-                'machines' => [['serial_no' => 'DRS2440020A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mwanga DH', 'short_code' => 'MWDH', 'type' => 'public',
@@ -721,7 +635,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.2805933, 'longitude' => 37.400801,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0763405312',
-                'machines' => [['serial_no' => 'DRS2450077A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Pasua HC', 'short_code' => 'PAHC', 'type' => 'public',
@@ -729,7 +642,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.4205031, 'longitude' => 37.4281661,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0758353915',
-                'machines' => [['serial_no' => 'DRH2280185A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Rombo DH', 'short_code' => 'RODH', 'type' => 'public',
@@ -737,7 +649,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.4187126, 'longitude' => 37.424924,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757306044',
-                'machines' => [['serial_no' => 'DRH2230033A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Same DH', 'short_code' => 'SADH', 'type' => 'public',
@@ -745,7 +656,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3289903, 'longitude' => 37.3811031,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Bilisia J Brown', 'contact_phone' => '753109636.0',
-                'machines' => [['serial_no' => '2528019', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-02-14', 'status' => 'operational']],
             ],
             [
                 'name' => 'Same DH', 'short_code' => 'SADH2', 'type' => 'public',
@@ -753,7 +663,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.2710723, 'longitude' => 37.3377965,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755405533',
-                'machines' => [['serial_no' => 'DRS2440084A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-05-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Siha DH', 'short_code' => 'SIDH2', 'type' => 'public',
@@ -761,7 +670,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3349056, 'longitude' => 37.4057685,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0783175678',
-                'machines' => [['serial_no' => 'DRH2280209A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Uru Kyaseni HC', 'short_code' => 'URKYH', 'type' => 'public',
@@ -769,7 +677,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.3227026, 'longitude' => 37.4177534,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0742924991',
-                'machines' => [['serial_no' => 'DRS2450084A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kinyonga DH', 'short_code' => 'KIDH5', 'type' => 'public',
@@ -777,7 +684,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.9755362, 'longitude' => 39.6897423,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Said', 'contact_phone' => '778594372.0',
-                'machines' => [['serial_no' => '2528009', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-18', 'status' => 'operational']],
             ],
             [
                 'name' => 'Lindi DH', 'short_code' => 'LIDH', 'type' => 'public',
@@ -785,7 +691,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.0369487, 'longitude' => 39.7255927,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0655805834',
-                'machines' => [['serial_no' => 'DRH2270139A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Liwale DH', 'short_code' => 'LIDH2', 'type' => 'public',
@@ -793,7 +698,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.0735967, 'longitude' => 39.693052,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0653774101',
-                'machines' => [['serial_no' => 'DRH2270140A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Babati DH', 'short_code' => 'BADH2', 'type' => 'public',
@@ -801,7 +705,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.2502516, 'longitude' => 35.6727305,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0786003709',
-                'machines' => [['serial_no' => 'DRH2280167A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Hanang DH', 'short_code' => 'HADH2', 'type' => 'public',
@@ -809,7 +712,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.1932807, 'longitude' => 35.7196583,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0677822466',
-                'machines' => [['serial_no' => 'DRH2280160A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kiteto DH', 'short_code' => 'KIDH6', 'type' => 'public',
@@ -817,7 +719,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.1448162, 'longitude' => 35.7150302,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0687999900',
-                'machines' => [['serial_no' => 'DRH2280170A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Manyara Rrh', 'short_code' => 'MARR', 'type' => 'public',
@@ -825,7 +726,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.1707356, 'longitude' => 35.6822052,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0716795108',
-                'machines' => [['serial_no' => 'DRS2420009A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mbulu DH', 'short_code' => 'MBDH2', 'type' => 'public',
@@ -833,7 +733,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.1712304, 'longitude' => 35.7336426,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0755410966',
-                'machines' => [['serial_no' => 'DRH2280163A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Mbulu TH', 'short_code' => 'MBTH', 'type' => 'public',
@@ -841,7 +740,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.2568705, 'longitude' => 35.7570095,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0715105709',
-                'machines' => [['serial_no' => 'DRH2280177A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Simanjiro DH', 'short_code' => 'SIDH3', 'type' => 'public',
@@ -849,7 +747,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.1422149, 'longitude' => 35.7944105,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0692135618',
-                'machines' => [['serial_no' => 'DRH2280184A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bunda DH', 'short_code' => 'BUDH4', 'type' => 'public',
@@ -857,7 +754,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.5498542, 'longitude' => 33.8015986,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Joseph Riso', 'contact_phone' => '787903920.0',
-                'machines' => [['serial_no' => 'L10534', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-04-13', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bunda Dch', 'short_code' => 'BUDC', 'type' => 'public',
@@ -865,7 +761,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.4821007, 'longitude' => 33.8483297,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0787903920',
-                'machines' => [['serial_no' => 'DRH2280194A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Manyamanyama Hospital', 'short_code' => 'MAHO', 'type' => 'public',
@@ -873,7 +768,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.4783417, 'longitude' => 33.7655619,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755324844',
-                'machines' => [['serial_no' => 'DRH2280193A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Musoma Dch', 'short_code' => 'MUDC', 'type' => 'public',
@@ -881,7 +775,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.5444439, 'longitude' => 33.8706907,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0766919256',
-                'machines' => [['serial_no' => 'DRH2280198A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nyamwaga Dch', 'short_code' => 'NYDC', 'type' => 'public',
@@ -889,7 +782,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.4378537, 'longitude' => 33.7138265,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0622661308',
-                'machines' => [['serial_no' => 'DRH2280195A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Rorya DH', 'short_code' => 'RODH2', 'type' => 'public',
@@ -897,7 +789,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.4232337, 'longitude' => 33.7427899,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0621422243',
-                'machines' => [['serial_no' => 'DRH2280201A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Serengeti DH', 'short_code' => 'SEDH', 'type' => 'public',
@@ -905,7 +796,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.4753505, 'longitude' => 33.8014133,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0715216695',
-                'machines' => [['serial_no' => 'DRH2280192A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Sirari HC', 'short_code' => 'SIHC', 'type' => 'public',
@@ -913,7 +803,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -1.4394016, 'longitude' => 33.8610153,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0753659495',
-                'machines' => [['serial_no' => 'DRH2280196A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Busokelo DH', 'short_code' => 'BUDH5', 'type' => 'public',
@@ -921,7 +810,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9352166, 'longitude' => 33.4201511,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0762523868',
-                'machines' => [['serial_no' => 'DRH2280202A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Igawilo DH', 'short_code' => 'IGDH', 'type' => 'public',
@@ -929,7 +817,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.8109861, 'longitude' => 33.4009045,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0620321093',
-                'machines' => [['serial_no' => 'DRH2240070A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Inyala DH', 'short_code' => 'INDH', 'type' => 'public',
@@ -937,7 +824,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.8489989, 'longitude' => 33.4469168,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0744640079',
-                'machines' => [['serial_no' => 'DRH2230025A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ipinda HC', 'short_code' => 'IPHC', 'type' => 'public',
@@ -945,7 +831,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9330797, 'longitude' => 33.5406847,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765764142',
-                'machines' => [['serial_no' => 'DRS2440019A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kilasilo HC', 'short_code' => 'KIHC4', 'type' => 'public',
@@ -953,7 +838,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9898488, 'longitude' => 33.4747608,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755439671',
-                'machines' => [['serial_no' => 'DRS2440015A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-05-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mbarali DH', 'short_code' => 'MBDH3', 'type' => 'public',
@@ -961,7 +845,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9085756, 'longitude' => 33.5071912,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0679136615',
-                'machines' => [['serial_no' => 'DRH2240086A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Njisi HC', 'short_code' => 'NJHC', 'type' => 'public',
@@ -969,7 +852,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9697617, 'longitude' => 33.5412701,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755439671',
-                'machines' => [['serial_no' => 'DRH2280215A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nzovwe HC', 'short_code' => 'NZHC', 'type' => 'public',
@@ -977,7 +859,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9361202, 'longitude' => 33.4302889,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765445085',
-                'machines' => [['serial_no' => 'DRH2240044A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Gairo DH', 'short_code' => 'GADH', 'type' => 'public',
@@ -985,7 +866,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7547078, 'longitude' => 37.6792033,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0768406396',
-                'machines' => [['serial_no' => 'DRH2240046A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kibaoni HC', 'short_code' => 'KIHC5', 'type' => 'public',
@@ -993,7 +873,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8159763, 'longitude' => 37.5743139,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0622337781',
-                'machines' => [['serial_no' => 'DRS2440026A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mahenge HC', 'short_code' => 'MAHC3', 'type' => 'public',
@@ -1001,7 +880,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8396449, 'longitude' => 37.6749058,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0620700813',
-                'machines' => [['serial_no' => 'DRH2280155A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Malinyi DH', 'short_code' => 'MADH', 'type' => 'public',
@@ -1009,7 +887,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8351844, 'longitude' => 37.6472077,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0719282958',
-                'machines' => [['serial_no' => 'DRH2280150A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mikumi HC', 'short_code' => 'MIHC', 'type' => 'public',
@@ -1017,7 +894,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7868957, 'longitude' => 37.6122552,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Dr Neema', 'contact_phone' => '765356166.0',
-                'machines' => [['serial_no' => '2504004', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-15', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mikumi HC', 'short_code' => 'MIHC2', 'type' => 'public',
@@ -1025,7 +901,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7651179, 'longitude' => 37.6498809,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0768747855',
-                'machines' => [['serial_no' => 'DRH2280153A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mlimba DH', 'short_code' => 'MLDH2', 'type' => 'public',
@@ -1033,7 +908,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7707598, 'longitude' => 37.7094283,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0782142842',
-                'machines' => [['serial_no' => 'DRH2280156A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Morogoro DH', 'short_code' => 'MODH2', 'type' => 'public',
@@ -1041,7 +915,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8367484, 'longitude' => 37.7460413,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0767308164',
-                'machines' => [['serial_no' => 'DRH2280154A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mtimbila HC', 'short_code' => 'MTHC', 'type' => 'public',
@@ -1049,7 +922,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.837612, 'longitude' => 37.708697,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0719900040',
-                'machines' => [['serial_no' => 'DRS2440017A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mvomero DH', 'short_code' => 'MVDH', 'type' => 'public',
@@ -1057,7 +929,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7626013, 'longitude' => 37.7147089,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0752276156',
-                'machines' => [['serial_no' => 'DRH2280157A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Tungi HC', 'short_code' => 'TUHC', 'type' => 'public',
@@ -1065,7 +936,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8404965, 'longitude' => 37.7360343,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0750599044',
-                'machines' => [['serial_no' => 'DRS2450063A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Likombe HC', 'short_code' => 'LIHC', 'type' => 'public',
@@ -1073,7 +943,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.3293164, 'longitude' => 40.2354574,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0719522517',
-                'machines' => [['serial_no' => 'DRH2270131A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Masasi DH', 'short_code' => 'MADH2', 'type' => 'public',
@@ -1081,7 +950,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.1881497, 'longitude' => 40.2455294,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0754617123',
-                'machines' => [['serial_no' => 'DRH2270136A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Masasi TH', 'short_code' => 'MATH', 'type' => 'public',
@@ -1089,7 +957,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.2377173, 'longitude' => 40.2259758,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0754617123',
-                'machines' => [['serial_no' => 'DRH2270132A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nanguruwe DH', 'short_code' => 'NADH', 'type' => 'public',
@@ -1097,7 +964,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.3356091, 'longitude' => 40.1141886,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0623117785',
-                'machines' => [['serial_no' => 'DRH2270137A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nanyamba DH', 'short_code' => 'NADH2', 'type' => 'public',
@@ -1105,7 +971,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.2605059, 'longitude' => 40.1731242,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0683869490',
-                'machines' => [['serial_no' => 'DRH2270134A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Newala TC', 'short_code' => 'NETC', 'type' => 'public',
@@ -1113,7 +978,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.1838541, 'longitude' => 40.1152023,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0624116381',
-                'machines' => [['serial_no' => 'DRS2470098A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-12-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Tandahimba DH', 'short_code' => 'TADH2', 'type' => 'public',
@@ -1121,7 +985,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.3074106, 'longitude' => 40.1291193,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0620790600',
-                'machines' => [['serial_no' => 'DRH2270138A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Buchosa DH', 'short_code' => 'BUDH6', 'type' => 'public',
@@ -1129,7 +992,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5828105, 'longitude' => 32.9615671,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0784214009',
-                'machines' => [['serial_no' => 'DRH2240079A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bulale HC', 'short_code' => 'BUHC2', 'type' => 'public',
@@ -1137,7 +999,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5024535, 'longitude' => 32.9009099,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764929953',
-                'machines' => [['serial_no' => 'DRH2240049A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Buzuruga HC', 'short_code' => 'BUHC3', 'type' => 'public',
@@ -1145,7 +1006,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5683933, 'longitude' => 32.9127063,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0782313598',
-                'machines' => [['serial_no' => 'DRS2450066A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-03-26', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bwisya HC', 'short_code' => 'BWHC2', 'type' => 'public',
@@ -1153,7 +1013,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.4607125, 'longitude' => 32.8359456,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0783006448',
-                'machines' => [['serial_no' => 'DRH2240075A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-05-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Igoma HC', 'short_code' => 'IGHC', 'type' => 'public',
@@ -1161,7 +1020,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5097198, 'longitude' => 32.9207171,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764929953',
-                'machines' => [['serial_no' => 'DRH2240072A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ilemela DH', 'short_code' => 'ILDH', 'type' => 'public',
@@ -1169,7 +1027,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.4993153, 'longitude' => 32.8286804,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0717035300',
-                'machines' => [['serial_no' => 'DRH2240083A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-07-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kahangara HC', 'short_code' => 'KAHC4', 'type' => 'public',
@@ -1177,7 +1034,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.4814547, 'longitude' => 32.8420893,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755391639',
-                'machines' => [['serial_no' => 'DRH2240080A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-08-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Karume HC', 'short_code' => 'KAHC5', 'type' => 'public',
@@ -1185,7 +1041,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.4610277, 'longitude' => 32.9057719,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0717035300',
-                'machines' => [['serial_no' => 'DRH2240081A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-09-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Koromije HC', 'short_code' => 'KOHC', 'type' => 'public',
@@ -1193,7 +1048,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5289682, 'longitude' => 32.9042268,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757994546',
-                'machines' => [['serial_no' => 'DRH2230037A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kwimba DH', 'short_code' => 'KWDH', 'type' => 'public',
@@ -1201,7 +1055,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5322146, 'longitude' => 32.9523505,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0744624612',
-                'machines' => [['serial_no' => 'DRH2240078A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mhandu', 'short_code' => 'MH', 'type' => 'public',
@@ -1209,7 +1062,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5125713, 'longitude' => 33.0065318,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0759421956',
-                'machines' => [['serial_no' => 'DRS2450048A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mhndu Disp', 'short_code' => 'MHDI', 'type' => 'public',
@@ -1217,7 +1069,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.4617984, 'longitude' => 32.9494452,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Miriam Malima', 'contact_phone' => '755413350.0',
-                'machines' => [['serial_no' => 'L10089', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2025-10-13', 'status' => 'operational']],
             ],
             [
                 'name' => 'Misasi HC', 'short_code' => 'MIHC3', 'type' => 'public',
@@ -1225,7 +1076,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5071219, 'longitude' => 32.9944621,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757994546',
-                'machines' => [['serial_no' => 'DRS2450054A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-08-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Misungwi DH', 'short_code' => 'MIDH', 'type' => 'public',
@@ -1233,7 +1083,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5567793, 'longitude' => 32.907736,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757994546',
-                'machines' => [['serial_no' => 'DRH2240064A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Muriti HC', 'short_code' => 'MUHC', 'type' => 'public',
@@ -1241,7 +1090,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5998214, 'longitude' => 32.9118358,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0625832583',
-                'machines' => [['serial_no' => 'DRH2240034A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nansio DH', 'short_code' => 'NADH3', 'type' => 'public',
@@ -1249,7 +1097,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5098627, 'longitude' => 32.9081428,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0625832583',
-                'machines' => [['serial_no' => 'DRH2230032A-DUP2', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Sengerema DH', 'short_code' => 'SEDH2', 'type' => 'public',
@@ -1257,7 +1104,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.5584614, 'longitude' => 32.932927,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755419447',
-                'machines' => [['serial_no' => 'DRH2240076A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ihahula HC', 'short_code' => 'IHHC', 'type' => 'public',
@@ -1265,7 +1111,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.2574311, 'longitude' => 34.7909589,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0749696915',
-                'machines' => [['serial_no' => 'DRS2450071A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kichiwa HC', 'short_code' => 'KIHC6', 'type' => 'public',
@@ -1273,7 +1118,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.4158972, 'longitude' => 34.8148583,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0620509638',
-                'machines' => [['serial_no' => 'DRS2450065A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Kifanya HC', 'short_code' => 'KIHC7', 'type' => 'public',
@@ -1281,7 +1125,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.321165, 'longitude' => 34.8511043,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764839574',
-                'machines' => [['serial_no' => 'DRS2450067A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Makambako TH', 'short_code' => 'MATH2', 'type' => 'public',
@@ -1289,7 +1132,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.3910166, 'longitude' => 34.8427103,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0714876619',
-                'machines' => [['serial_no' => 'DRH2280213A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-23', 'status' => 'operational']],
             ],
             [
                 'name' => 'Makete DH', 'short_code' => 'MADH3', 'type' => 'public',
@@ -1297,7 +1139,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.3109095, 'longitude' => 34.8546478,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Dr Matei', 'contact_phone' => '694229406.0',
-                'machines' => [['serial_no' => '2528023', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-11-03', 'status' => 'operational']],
             ],
             [
                 'name' => 'Makowo HC', 'short_code' => 'MAHC4', 'type' => 'public',
@@ -1305,7 +1146,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.3885096, 'longitude' => 34.6844623,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0750650007',
-                'machines' => [['serial_no' => 'DRS2450076A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mji Mwema HC', 'short_code' => 'MJMWH', 'type' => 'public',
@@ -1313,7 +1153,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.3866611, 'longitude' => 34.8491776,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0750650007',
-                'machines' => [['serial_no' => 'DRS2450069A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Njombe DH', 'short_code' => 'NJDH', 'type' => 'public',
@@ -1321,7 +1160,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.3370213, 'longitude' => 34.7704165,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0744617509',
-                'machines' => [['serial_no' => 'DRH2280207A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2022-11-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Wang\'ingombe HC', 'short_code' => 'WAHC', 'type' => 'public',
@@ -1329,7 +1167,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.3624282, 'longitude' => 34.8061976,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0768694992',
-                'machines' => [['serial_no' => 'DRS2470097A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-01-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Wanging\'ombe DH', 'short_code' => 'WADH', 'type' => 'public',
@@ -1337,7 +1174,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -9.3695396, 'longitude' => 34.8236577,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0717789973',
-                'machines' => [['serial_no' => 'DRH2280205A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-02', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bagamoyo DH', 'short_code' => 'BADH3', 'type' => 'public',
@@ -1345,7 +1181,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8092903, 'longitude' => 38.8335278,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765729380',
-                'machines' => [['serial_no' => 'DRH2280151A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Fukayosi HC', 'short_code' => 'FUHC', 'type' => 'public',
@@ -1353,7 +1188,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8287998, 'longitude' => 38.8851817,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765729380',
-                'machines' => [['serial_no' => 'DRS2450059A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-11-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ikwiriri HC', 'short_code' => 'IKHC', 'type' => 'public',
@@ -1361,7 +1195,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7796642, 'longitude' => 38.8783553,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0615237525',
-                'machines' => [['serial_no' => 'DRS2450061A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-09-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kerege HC', 'short_code' => 'KEHC2', 'type' => 'public',
@@ -1369,7 +1202,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8624851, 'longitude' => 38.9522326,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765729380',
-                'machines' => [['serial_no' => 'DRS2450058A-DUP2', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2024-09-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kibiti DH', 'short_code' => 'KIDH7', 'type' => 'public',
@@ -1377,7 +1209,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.743452, 'longitude' => 38.8437328,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0713375306',
-                'machines' => [['serial_no' => 'DRH2270135A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mkoani HC', 'short_code' => 'MKHC2', 'type' => 'public',
@@ -1385,7 +1216,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8262287, 'longitude' => 38.8355224,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0718561392',
-                'machines' => [['serial_no' => 'DRH2280152A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mlandizi DH', 'short_code' => 'MLDH3', 'type' => 'public',
@@ -1393,7 +1223,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7529877, 'longitude' => 38.9512416,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0623133428',
-                'machines' => [['serial_no' => 'DRH2280148A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Msata HC', 'short_code' => 'MSHC', 'type' => 'public',
@@ -1401,7 +1230,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7810145, 'longitude' => 39.0012911,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0686104621',
-                'machines' => [['serial_no' => 'DRS2450062A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-18', 'status' => 'operational']],
             ],
             [
                 'name' => 'Msoga DH', 'short_code' => 'MSDH', 'type' => 'public',
@@ -1409,7 +1237,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.788156, 'longitude' => 38.9887404,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0686104621',
-                'machines' => [['serial_no' => 'DRH2230021A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Utete DH', 'short_code' => 'UTDH', 'type' => 'public',
@@ -1417,7 +1244,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.7950949, 'longitude' => 38.8895725,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Gerald', 'contact_phone' => '657099003.0',
-                'machines' => [['serial_no' => '2528003', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-13', 'status' => 'operational']],
             ],
             [
                 'name' => 'Utete DH', 'short_code' => 'UTDH2', 'type' => 'public',
@@ -1425,7 +1251,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -6.8606908, 'longitude' => 38.8847539,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0615237525',
-                'machines' => [['serial_no' => 'DRH2270133A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Isofu DH', 'short_code' => 'ISDH', 'type' => 'public',
@@ -1433,7 +1258,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -7.9417031, 'longitude' => 31.5378274,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0742820984',
-                'machines' => [['serial_no' => 'DRH2290186A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-07-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kalambo DH', 'short_code' => 'KADH5', 'type' => 'public',
@@ -1441,7 +1265,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.0031436, 'longitude' => 31.6614219,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0655233473',
-                'machines' => [['serial_no' => 'DRH2280190A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mtowisa DH', 'short_code' => 'MTDH', 'type' => 'public',
@@ -1449,7 +1272,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -7.9767288, 'longitude' => 31.6654367,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765287687',
-                'machines' => [['serial_no' => 'DRH2280191A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nkasi DH', 'short_code' => 'NKDH', 'type' => 'public',
@@ -1457,7 +1279,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.0435325, 'longitude' => 31.5663301,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0754478788',
-                'machines' => [['serial_no' => 'DRH2280187A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Madaba DH', 'short_code' => 'MADH4', 'type' => 'public',
@@ -1465,7 +1286,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.7007568, 'longitude' => 35.7142682,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0743859197',
-                'machines' => [['serial_no' => 'DRH2280210A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Matemanga HC', 'short_code' => 'MAHC5', 'type' => 'public',
@@ -1473,7 +1293,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.6086087, 'longitude' => 35.6638892,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0784547826',
-                'machines' => [['serial_no' => 'DRS2470099A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-10-25', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nyasa DH', 'short_code' => 'NYDH3', 'type' => 'public',
@@ -1481,7 +1300,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.668078, 'longitude' => 35.6032691,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0713988457',
-                'machines' => [['serial_no' => 'DRH2280211A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Songea DH', 'short_code' => 'SODH', 'type' => 'public',
@@ -1489,7 +1307,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.749288, 'longitude' => 35.6942234,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0713314942',
-                'machines' => [['serial_no' => 'DRH2282716A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Songea Mh', 'short_code' => 'SOMH', 'type' => 'public',
@@ -1497,7 +1314,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -10.7510696, 'longitude' => 35.7060026,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755087938',
-                'machines' => [['serial_no' => 'DRS2450085A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-25', 'status' => 'operational']],
             ],
             [
                 'name' => 'Isaka HC', 'short_code' => 'ISHC', 'type' => 'public',
@@ -1505,7 +1321,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.7279937, 'longitude' => 33.3676257,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => 'O754767745 MOI',
-                'machines' => [['serial_no' => 'DRH2240053A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Iyenze HC', 'short_code' => 'IYHC', 'type' => 'public',
@@ -1513,7 +1328,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.7342507, 'longitude' => 33.4374665,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0719737948',
-                'machines' => [['serial_no' => 'DRS2450068A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2026-03-26', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kagongwa HC', 'short_code' => 'KAHC6', 'type' => 'public',
@@ -1521,7 +1335,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.68647, 'longitude' => 33.506063,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0763243223',
-                'machines' => [['serial_no' => 'DRS2440021A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kahama DH', 'short_code' => 'KADH6', 'type' => 'public',
@@ -1529,7 +1342,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.5721975, 'longitude' => 33.3481884,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0768897858',
-                'machines' => [['serial_no' => 'DRH2240062A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kambarage HC', 'short_code' => 'KAHC7', 'type' => 'public',
@@ -1537,7 +1349,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.6858541, 'longitude' => 33.3718095,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764009755',
-                'machines' => [['serial_no' => 'DRS2450064A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kishapu DH', 'short_code' => 'KIDH8', 'type' => 'public',
@@ -1545,7 +1356,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.6482897, 'longitude' => 33.4003662,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0753331 RAD390',
-                'machines' => [['serial_no' => 'DRH2240067A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ngaya HC', 'short_code' => 'NGHC', 'type' => 'public',
@@ -1553,7 +1363,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.6670411, 'longitude' => 33.4096514,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'David Kihama', 'contact_phone' => '716830284.0',
-                'machines' => [['serial_no' => 'L10093', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2025-10-14', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nyasubi HC', 'short_code' => 'NYHC2', 'type' => 'public',
@@ -1561,7 +1370,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.6606343, 'longitude' => 33.4498371,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764598295',
-                'machines' => [['serial_no' => 'DRH2240048A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Salawe HC', 'short_code' => 'SAHC', 'type' => 'public',
@@ -1569,7 +1377,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.6157796, 'longitude' => 33.3402798,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0620222494',
-                'machines' => [['serial_no' => 'DRS2450050A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-10-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Shinyanga DH', 'short_code' => 'SHDH', 'type' => 'public',
@@ -1577,7 +1384,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.7108231, 'longitude' => 33.4605744,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764598295',
-                'machines' => [['serial_no' => 'DRH2240065A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ushetu DH', 'short_code' => 'USDH', 'type' => 'public',
@@ -1585,7 +1391,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -3.5862934, 'longitude' => 33.3835823,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0754352001',
-                'machines' => [['serial_no' => 'DRH2240066A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Bariadi DH', 'short_code' => 'BADH4', 'type' => 'public',
@@ -1593,7 +1398,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.7458341, 'longitude' => 33.9784454,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0786423523',
-                'machines' => [['serial_no' => 'DRH2280164A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Busega DH', 'short_code' => 'BUDH7', 'type' => 'public',
@@ -1601,7 +1405,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.7758718, 'longitude' => 33.9520697,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '020678091 RAD',
-                'machines' => [['serial_no' => 'DRH2280165A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Itilima DH', 'short_code' => 'ITDH', 'type' => 'public',
@@ -1609,7 +1412,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.7183812, 'longitude' => 33.9206248,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0652775840',
-                'machines' => [['serial_no' => 'DRH2240162A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Meatu DH', 'short_code' => 'MEDH2', 'type' => 'public',
@@ -1617,7 +1419,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -2.7676926, 'longitude' => 34.0640069,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0757929133',
-                'machines' => [['serial_no' => 'DRH2280161A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ikungi DH', 'short_code' => 'IKDH', 'type' => 'public',
@@ -1625,7 +1426,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8600162, 'longitude' => 34.8361053,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0652803979',
-                'machines' => [['serial_no' => 'DRH2280176A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Iramba DH', 'short_code' => 'IRDH2', 'type' => 'public',
@@ -1633,7 +1433,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9019452, 'longitude' => 34.7250318,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0755276062',
-                'machines' => [['serial_no' => 'DRH2280166A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Itigi DH', 'short_code' => 'ITDH2', 'type' => 'public',
@@ -1641,7 +1440,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8564536, 'longitude' => 34.7096746,
                 'machine_count' => 1, 'machines_operational' => 0,
                 'contact_name' => null, 'contact_phone' => '0623474237',
-                'machines' => [['serial_no' => 'DRS2450055A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'down']],
             ],
             [
                 'name' => 'Manyoni DH', 'short_code' => 'MADH5', 'type' => 'public',
@@ -1649,7 +1447,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8857576, 'longitude' => 34.779307,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0716923350',
-                'machines' => [['serial_no' => 'DRH2280173A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mkalama DH', 'short_code' => 'MKDH', 'type' => 'public',
@@ -1657,7 +1454,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.7268354, 'longitude' => 34.8231205,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0654533187',
-                'machines' => [['serial_no' => 'DRH2280153A-DUP2', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Singida DH', 'short_code' => 'SIDH4', 'type' => 'public',
@@ -1665,7 +1461,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8866335, 'longitude' => 34.6876623,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0657022479',
-                'machines' => [['serial_no' => 'DRH2280175A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Singida MC', 'short_code' => 'SIMC', 'type' => 'public',
@@ -1673,7 +1468,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.7676574, 'longitude' => 34.7090883,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Christina', 'contact_phone' => '621145797.0',
-                'machines' => [['serial_no' => '2528002', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-11-03', 'status' => 'operational']],
             ],
             [
                 'name' => 'Singida Mh', 'short_code' => 'SIMH', 'type' => 'public',
@@ -1681,7 +1475,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8990141, 'longitude' => 34.7603504,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0767373076',
-                'machines' => [['serial_no' => 'DRS2450052A-DUP2', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Sokoine HC', 'short_code' => 'SOHC', 'type' => 'public',
@@ -1689,7 +1482,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.8732067, 'longitude' => 34.7278102,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0657787249',
-                'machines' => [['serial_no' => 'DRH2280174A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Tunduma TH', 'short_code' => 'TUTH', 'type' => 'public',
@@ -1697,7 +1489,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9150979, 'longitude' => 32.888028,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0778974195',
-                'machines' => [['serial_no' => 'DRH2240059A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Vwawa DH', 'short_code' => 'VWDH', 'type' => 'public',
@@ -1705,7 +1496,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.8916613, 'longitude' => 33.0189979,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'George Kalenzi', 'contact_phone' => '764439440.0',
-                'machines' => [['serial_no' => '2528021', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-04-14', 'status' => 'operational']],
             ],
             [
                 'name' => 'Vwawa DH', 'short_code' => 'VWDH2', 'type' => 'public',
@@ -1713,7 +1503,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -8.9685152, 'longitude' => 32.9194699,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764439440',
-                'machines' => [['serial_no' => 'DRH2240073A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Igunga DH', 'short_code' => 'IGDH2', 'type' => 'public',
@@ -1721,7 +1510,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0933571, 'longitude' => 32.7903721,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0787171741',
-                'machines' => [['serial_no' => 'DRH2280159A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nzega DH', 'short_code' => 'NZDH2', 'type' => 'public',
@@ -1729,7 +1517,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0862089, 'longitude' => 32.8007235,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0679170209',
-                'machines' => [['serial_no' => 'DRS2440039A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-04-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nzega TC', 'short_code' => 'NZTC', 'type' => 'public',
@@ -1737,7 +1524,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9373456, 'longitude' => 32.845461,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Katunga', 'contact_phone' => '765145723.0',
-                'machines' => [['serial_no' => '2524006', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-17', 'status' => 'operational']],
             ],
             [
                 'name' => 'Nzega TH', 'short_code' => 'NZTH', 'type' => 'public',
@@ -1745,7 +1531,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0699075, 'longitude' => 32.8508576,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0753008238',
-                'machines' => [['serial_no' => 'DRS2450087A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Sikonge DH', 'short_code' => 'SIDH5', 'type' => 'public',
@@ -1753,7 +1538,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0988374, 'longitude' => 32.8852292,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0763345415',
-                'machines' => [['serial_no' => 'DRH2280171A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Tabora Mh', 'short_code' => 'TAMH', 'type' => 'public',
@@ -1761,7 +1545,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0740931, 'longitude' => 32.7842268,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0764068533',
-                'machines' => [['serial_no' => 'DRH2280168A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Tutuo HC', 'short_code' => 'TUHC2', 'type' => 'public',
@@ -1769,7 +1552,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0146453, 'longitude' => 32.7747993,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0762347718',
-                'machines' => [['serial_no' => 'DRS2450074A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Urambo DH', 'short_code' => 'URDH', 'type' => 'public',
@@ -1777,7 +1559,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0812641, 'longitude' => 32.7418552,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Suka', 'contact_phone' => '769115795.0',
-                'machines' => [['serial_no' => '2524004', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-03-15', 'status' => 'operational']],
             ],
             [
                 'name' => 'Urambo DH', 'short_code' => 'URDH2', 'type' => 'public',
@@ -1785,7 +1566,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9832815, 'longitude' => 32.7692391,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0749329612',
-                'machines' => [['serial_no' => 'DRH2280172A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Uyui DH', 'short_code' => 'UYDH', 'type' => 'public',
@@ -1793,7 +1573,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0103943, 'longitude' => 32.7695516,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0745386783',
-                'machines' => [['serial_no' => 'DRH2280169A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Kilindi DH', 'short_code' => 'KIDH9', 'type' => 'public',
@@ -1801,7 +1580,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0306287, 'longitude' => 39.0858575,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0758261447',
-                'machines' => [['serial_no' => 'DRS2440041A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-05-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Korogwe TH', 'short_code' => 'KOTH', 'type' => 'public',
@@ -1809,7 +1587,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0660061, 'longitude' => 39.1574988,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => 'Richard Msanga', 'contact_phone' => '678404779.0',
-                'machines' => [['serial_no' => '2528006', 'model' => 'ECUBE 8', 'type' => 'Ultrasound Unit', 'install_date' => '2026-11-04', 'status' => 'operational']],
             ],
             [
                 'name' => 'Majengo HC', 'short_code' => 'MAHC6', 'type' => 'public',
@@ -1817,7 +1594,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0308426, 'longitude' => 39.0472147,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0765270732',
-                'machines' => [['serial_no' => 'DRH2230028A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Makorora HC', 'short_code' => 'MAHC7', 'type' => 'public',
@@ -1825,7 +1601,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.1064788, 'longitude' => 39.1413116,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0656131769',
-                'machines' => [['serial_no' => 'DRS2440034A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-06-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mkata DH', 'short_code' => 'MKDH2', 'type' => 'public',
@@ -1833,7 +1608,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0907929, 'longitude' => 39.0223034,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0628395542',
-                'machines' => [['serial_no' => 'DRH2280200A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Mkinga DH', 'short_code' => 'MKDH3', 'type' => 'public',
@@ -1841,7 +1615,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -4.9997067, 'longitude' => 39.1324402,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0758864153',
-                'machines' => [['serial_no' => 'DRS2420008A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-05-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Muheza DH', 'short_code' => 'MUDH', 'type' => 'public',
@@ -1849,7 +1622,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.1163605, 'longitude' => 39.130029,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0621813113',
-                'machines' => [['serial_no' => 'DRH2230031A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-03-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Ngamiani HC', 'short_code' => 'NGHC2', 'type' => 'public',
@@ -1857,7 +1629,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.1060073, 'longitude' => 39.016379,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0785116260',
-                'machines' => [['serial_no' => 'DRS2440038A', 'model' => 'GXR-C52SD', 'type' => 'X-Ray Machine', 'install_date' => '2025-05-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Sam Ddh', 'short_code' => 'SADD', 'type' => 'public',
@@ -1865,7 +1636,6 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0744549, 'longitude' => 39.122555,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0658084170',
-                'machines' => [['serial_no' => 'DRH2230030A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-02-01', 'status' => 'operational']],
             ],
             [
                 'name' => 'Songe HC', 'short_code' => 'SOHC2', 'type' => 'public',
@@ -1873,26 +1643,17 @@ class RealFacilityImportSeeder extends Seeder
                 'latitude' => -5.0511272, 'longitude' => 39.1824833,
                 'machine_count' => 1, 'machines_operational' => 1,
                 'contact_name' => null, 'contact_phone' => '0628064866',
-                'machines' => [['serial_no' => 'DRH2280197A', 'model' => 'GXR-52SD', 'type' => 'X-Ray Machine', 'install_date' => '2023-03-01', 'status' => 'operational']],
             ],
         ];
 
         foreach ($facilities as $f) {
-            $hospital = Hospital::create([
+            Hospital::create([
                 'name' => $f['name'], 'short_code' => $f['short_code'], 'type' => $f['type'],
                 'region' => $f['region'], 'district' => $f['district'], 'zone' => $f['zone'],
                 'latitude' => $f['latitude'], 'longitude' => $f['longitude'],
                 'machine_count' => $f['machine_count'], 'machines_operational' => $f['machines_operational'],
                 'contact_name' => $f['contact_name'], 'contact_phone' => $f['contact_phone'],
             ]);
-
-            foreach ($f['machines'] as $m) {
-                Machine::create([
-                    'serial_no' => $m['serial_no'], 'model' => $m['model'], 'type' => $m['type'],
-                    'hospital_id' => $hospital->id, 'install_date' => $m['install_date'],
-                    'status' => $m['status'], 'revenue_per_month' => 0,
-                ]);
-            }
         }
     }
 }

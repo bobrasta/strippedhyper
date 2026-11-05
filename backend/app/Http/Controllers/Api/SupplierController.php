@@ -56,7 +56,7 @@ class SupplierController extends Controller
 
     public function show(Supplier $supplier)
     {
-        $supplier->load(['items' => fn ($q) => $q->with('compatibleModels')]);
+        $supplier->load('items');
 
         return response()->json(['data' => $supplier]);
     }

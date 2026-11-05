@@ -29,16 +29,6 @@ class Hospital extends Model
         return $this->hasMany(SalesOrder::class);
     }
 
-    public function machines()
-    {
-        return $this->hasMany(Machine::class);
-    }
-
-    public function tickets()
-    {
-        return $this->hasMany(ServiceTicket::class);
-    }
-
     public function invoices()
     {
         return $this->hasMany(Invoice::class);

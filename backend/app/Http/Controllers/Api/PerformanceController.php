@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
-use App\Models\Machine;
 use App\Models\Quotation;
 use App\Models\SalesLead;
 use App\Models\SalesOrder;
-use App\Models\ServiceTicket;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -17,8 +15,8 @@ use Illuminate\Support\Carbon;
 // Backs "My Performance" (every role — see /performance/mine) and "Team
 // Performance" (sales managers only — /performance/team). Deliberately
 // composed from sections that are present only when the caller has real
-// activity behind them (a technician with zero installs ever doesn't get
-// an empty Field section) rather than every role seeing every block.
+// activity behind them (someone with no leads or quotations doesn't get
+// an empty Sales section) rather than every role seeing every block.
 // No quota/target concept exists anywhere in the schema — deliberately
 // left out rather than fabricated; the revenue chart has no target line
 // and the leaderboard has no quota column, unlike the original design
@@ -39,8 +37,6 @@ class PerformanceController extends Controller
 
         $hasSalesActivity = SalesLead::where('assigned_to', $user->id)->exists()
             || Quotation::where('created_by', $user->id)->exists();
-        $hasFieldActivity = Machine::where('installed_by', $user->id)->exists()
-            || ServiceTicket::where('assigned_to', $user->id)->exists();
 
         return response()->json(['data' => [
             'period' => Carbon::now()->format('F Y'),
@@ -50,7 +46,6 @@ class PerformanceController extends Controller
                 'overdue'   => (int) $tasks->overdue,
             ],
             'sales' => $hasSalesActivity ? $this->mySales($user, $startOfMonth) : null,
-            'field' => $hasFieldActivity ? $this->myField($user, $startOfMonth) : null,
         ]]);
     }
 
@@ -91,7 +86,7 @@ class PerformanceController extends Controller
             ->sum('commission_amount');
 
         // Career totals for the profile page's header stat strip — real
-        // aggregates, same reasoning as myField()'s all-time additions.
+        // aggregates.
         $wonLeads = SalesLead::where('assigned_to', $user->id)->where('stage', 'won');
 
         return [
@@ -105,35 +100,6 @@ class PerformanceController extends Controller
             'commission_mtd' => $commissionMtd,
             'deals_won_all_time' => (clone $wonLeads)->count(),
             'accounts_served' => (clone $wonLeads)->whereNotNull('hospital_id')->distinct()->count('hospital_id'),
-        ];
-    }
-
-    private function myField(User $user, Carbon $startOfMonth): array
-    {
-        // All-time counterparts to the monthly figures below — used for the
-        // profile page's header stat strip, which shows career totals
-        // rather than this month's activity. Real aggregates, not
-        // fabricated: no first-time-fix concept exists in the schema (no
-        // repeat-visit/reopened flag on ServiceTicket), so that number from
-        // the original design mock is deliberately left out rather than
-        // invented.
-        $hospitalsServed = Machine::where('installed_by', $user->id)->whereNotNull('hospital_id')
-            ->distinct()->pluck('hospital_id')
-            ->merge(ServiceTicket::where('assigned_to', $user->id)->whereNotNull('hospital_id')
-                ->distinct()->pluck('hospital_id'))
-            ->unique()->count();
-
-        return [
-            'machines_installed_this_month' => Machine::where('installed_by', $user->id)
-                ->where('installed_at', '>=', $startOfMonth)->count(),
-            'tickets_resolved_this_month' => ServiceTicket::where('assigned_to', $user->id)
-                ->where('status', 'resolved')->where('resolved_at', '>=', $startOfMonth)->count(),
-            'tickets_open' => ServiceTicket::where('assigned_to', $user->id)
-                ->whereIn('status', ['open', 'in_progress'])->count(),
-            'machines_installed_all_time' => Machine::where('installed_by', $user->id)->count(),
-            'tickets_resolved_all_time' => ServiceTicket::where('assigned_to', $user->id)
-                ->where('status', 'resolved')->count(),
-            'hospitals_served' => $hospitalsServed,
         ];
     }
 

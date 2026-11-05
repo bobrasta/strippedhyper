@@ -77,10 +77,8 @@ class StockService
     // Per-unit tracking for every product (2026-08-26 — previously adopted
     // per-item, mostly for capital equipment). One SerialNumber row per unit
     // received, auto-numbered off this movement's id so it's unique without
-    // a separate per-item counter. Equipment (creates_machine_record) still
-    // gets its richer chain via MachineRegistrationService when sold; every
-    // other item gets the lighter consumed_reference_* chain in deduct()
-    // below — both read back through the same /inventory/{item}/history.
+    // a separate per-item counter. Every item gets the consumed_reference_*
+    // chain in deduct() below, read back through /inventory/{item}/history.
     private function createSerialsForReceipt(InventoryItem $item, Location $location, int $qty, StockMovement $movement): void
     {
         for ($i = 1; $i <= $qty; $i++) {
@@ -140,20 +138,13 @@ class StockService
         });
     }
 
-    // Equipment (creates_machine_record) keeps its own richer consumption
-    // path via MachineRegistrationService — skip here to avoid double-
-    // consuming the same 'available' serials. Everything else gets this
-    // lighter generic chain: oldest-available-first, stamped with whatever
+    // Oldest-available-first, stamped with whatever
     // deduct() was called for (sales order, stock-out request, etc.) via
     // the same reference_type/reference_id shape stock_movements already
     // uses. Doesn't hard-fail when fewer tracked units exist than $qty —
     // per-unit tracking started 2026-08-26, so older stock may predate it.
     private function consumeSerials(InventoryItem $item, int $qty, ?Model $reference): void
     {
-        if ($item->creates_machine_record) {
-            return;
-        }
-
         $serials = SerialNumber::where('inventory_item_id', $item->id)
             ->where('status', 'available')
             ->oldest('id')

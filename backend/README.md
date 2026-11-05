@@ -7,6 +7,14 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Stripped build
+
+This backend is a stripped copy of hypermed-api: the machines (fleet,
+warranty, map), service (tickets, technicians, service reports, spare parts,
+part cannibalization) and hospitals-directory modules are removed. The
+`hospitals` table stays as the customer record. Old tables and columns are
+left in the schema unused (migrations are unchanged). See LARAVEL_CLAUDE.md.
+
 ## NeST tender tracker
 
 Pulls published tenders from NeST (nest.go.tz, Tanzania's e-procurement

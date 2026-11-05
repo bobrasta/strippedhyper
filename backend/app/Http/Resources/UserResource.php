@@ -60,11 +60,6 @@ class UserResource extends JsonResource
                 'account_number' => $this->paymentProfile->account_number,
                 'account_name'   => $this->paymentProfile->account_name,
             ] : null),
-            'current_task' => $this->whenLoaded('currentTask', function () {
-                return $this->currentTask
-                    ? ['id' => $this->currentTask->id, 'title' => $this->currentTask->ticket_number . ' — ' . $this->currentTask->description]
-                    : null;
-            }, null),
         ];
     }
 }

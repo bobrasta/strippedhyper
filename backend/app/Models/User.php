@@ -90,18 +90,6 @@ class User extends Authenticatable
         return $this->hasOne(StaffPaymentProfile::class);
     }
 
-    public function tickets()
-    {
-        return $this->hasMany(ServiceTicket::class, 'assigned_to');
-    }
-
-    public function currentTask()
-    {
-        return $this->hasOne(ServiceTicket::class, 'assigned_to')
-            ->whereIn('status', ['open', 'in_progress'])
-            ->latestOfMany();
-    }
-
     public function leads()
     {
         return $this->hasMany(SalesLead::class, 'assigned_to');
@@ -182,27 +170,6 @@ class User extends Authenticatable
         return app(EffectivePermissionResolver::class)->can($this, 'sales.create_subordinate_user');
     }
 
-    // Ticket creation had no gate at all — reachable from the Dashboard's
-    // "New Ticket" shortcut by literally any role, finance/accountant
-    // included, since that button isn't behind the dedicated Service
-    // screen. Reuses screens.service rather than a new permission key:
-    // whoever can see the Service screen is exactly who should be able to
-    // open a ticket from anywhere else in the app too.
-    public function hasServiceTicketCreateAuthority(): bool
-    {
-        return app(EffectivePermissionResolver::class)->can($this, 'screens.service');
-    }
-
-    // Resolving a ticket had no gate at all — any authenticated user could
-    // call resolve() on any ticket. Reuses services.close_ticket, a
-    // permission that already existed in the catalog but was never wired
-    // to an actual check anywhere (and was granted to the wrong role —
-    // see the catch-up migration that repoints it to cto/team_leader).
-    public function hasServiceTicketResolveAuthority(): bool
-    {
-        return app(EffectivePermissionResolver::class)->can($this, 'services.close_ticket');
-    }
-
     // Hospital create/edit/delete had no gate at all — any authenticated
     // user could call store()/update()/destroy(). A real permission
     // (not a hardcoded role list) so a Director/CTO can hand it to a
@@ -259,11 +226,6 @@ class User extends Authenticatable
         return app(EffectivePermissionResolver::class)->can($this, 'logistics.receive_order');
     }
 
-    public function hasEquipmentSignOffAuthority(): bool
-    {
-        return app(EffectivePermissionResolver::class)->can($this, 'services.sign_off_installation');
-    }
-
     // Sales lead/quotation/order create+edit had no gate at all — any
     // authenticated user of any role could write these. sales.create and
     // sales.edit already existed in the catalog (sales/sales_manager hold
@@ -317,11 +279,6 @@ class User extends Authenticatable
         return app(EffectivePermissionResolver::class)->can($this, 'inventory.adjust_stock');
     }
 
-    public function hasMachineReceiveAuthority(): bool
-    {
-        return app(EffectivePermissionResolver::class)->can($this, 'machines.receive');
-    }
-
     // PurchaseOrderController::index()/show() had no gate at all — any
     // authenticated user (a technician, a CS rep) could list every PO
     // including supplier/cost data, or view any single one. Reuses the
@@ -353,24 +310,10 @@ class User extends Authenticatable
             || app(EffectivePermissionResolver::class)->can($this, 'screens.purchases');
     }
 
-    public function hasMachineAllocateAuthority(): bool
-    {
-        return app(EffectivePermissionResolver::class)->can($this, 'machines.allocate');
-    }
-
-    // ServiceTicketController had no assign() method — assignment goes
-    // through update(), gated CTO-tier only, so team_leader held
-    // services.assign_ticket in the catalog but nothing ever checked it.
-    public function hasServiceTicketAssignAuthority(): bool
-    {
-        return app(EffectivePermissionResolver::class)->can($this, 'services.assign_ticket');
-    }
-
     // The general Task board (/tasks) used authority.manager_tier — held
     // only by super_admin/admin/sales_manager/finance_manager — even though
-    // cto/team_leader are the roles that actually supervise technicians and
-    // hold the equivalent ticket-assign/sign-off authority everywhere else
-    // in the service-ticket world. Separate permission (not a widened
+    // cto/team_leader are the roles that actually supervise technicians.
+    // Separate permission (not a widened
     // manager_tier) so this doesn't change what MANAGER_ROLES/isManagerTier()
     // mean anywhere else that already consumes them.
     public function hasTaskManageAuthority(): bool

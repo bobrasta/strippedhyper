@@ -13,11 +13,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 // The Customers page: a customer is a client record (hospitals row) —
-// the facility we sell to or service — and the people we talk to there
-// are its contacts. The hospitals table also holds the ~13,600-row
-// national facility registry (prospects), so "customer" here means a
-// facility we actually do business with: it has our machines, invoices,
-// sales orders or contact people, or came over from Clickhuduma.
+// the facility we sell to — and the people we talk to there are its
+// contacts. The hospitals table also holds the ~13,600-row national
+// facility registry (prospects), so "customer" here means a facility we
+// actually do business with: it has invoices, sales orders or contact
+// people, came over from Clickhuduma, or carries a legacy installed-base
+// count (the stored hospitals.machine_count column, kept from before the
+// machines module was removed so existing clients stay listed).
 class CustomerController extends Controller
 {
     private const OPEN = ['pending', 'sent', 'partial', 'overdue'];
@@ -138,7 +140,6 @@ class CustomerController extends Controller
             'email'             => $h->contact_email,
             'address'           => $h->address,
             'contact_name'      => $h->contact_name,
-            'machine_count'     => (int) $h->machine_count,
             'contacts_count'    => (int) ($h->contacts_count ?? 0),
             'invoices_count'    => (int) ($h->invoices_count ?? 0),
             'total_billed'      => (int) ($h->total_billed ?? 0),

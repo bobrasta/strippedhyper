@@ -48,7 +48,7 @@ class InventoryItemSeeder extends Seeder
         $categoryIds = Category::pluck('id', 'name');
 
         foreach ($items as $item) {
-            $models = $item['compatible_models'];
+            // compatible_models: legacy machine-model data, no longer stored.
             unset($item['compatible_models']);
 
             $categoryName = $item['category'];
@@ -64,12 +64,6 @@ class InventoryItemSeeder extends Seeder
             // (e.g. from an earlier seed run before categories existed).
             if ($inv->category_id !== $item['category_id']) {
                 $inv->update(['category_id' => $item['category_id']]);
-            }
-
-            if ($inv->wasRecentlyCreated) {
-                foreach ($models as $m) {
-                    $inv->compatibleModels()->create(['machine_model' => $m]);
-                }
             }
         }
     }

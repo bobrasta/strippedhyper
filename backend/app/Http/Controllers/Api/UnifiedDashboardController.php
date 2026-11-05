@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * One request, one screen — replaces the old one-size-fits-all "Dashboard"
- * (which showed fleet/ticket/revenue KPIs to literally every role) with an
+ * (which showed the same KPIs to literally every role) with an
  * ordered list of department sections, each included only if the viewer
  * holds the same screens.* permission that already gates that department
  * everywhere else in the app. Section presence in the response IS the
@@ -36,8 +36,6 @@ class UnifiedDashboardController extends Controller
         $user = $request->user();
 
         $sectionTable = [
-            ['key' => 'fleet',     'permission' => 'screens.machines',     'title' => 'Machines & Fleet',   'type' => 'kpi_grid', 'builder' => fn () => $this->dashboard->buildFleetSection()],
-            ['key' => 'service',   'permission' => 'screens.service',      'title' => 'Service & Tickets',  'type' => 'mixed',    'builder' => fn () => $this->dashboard->buildServiceSection()],
             ['key' => 'inventory', 'permission' => 'screens.inventory',    'title' => 'Inventory',          'type' => 'mixed',    'builder' => fn () => $this->dashboard->buildInventory()],
             ['key' => 'sales',     'permission' => 'screens.sales',        'title' => 'Sales',              'type' => 'mixed',    'builder' => fn () => $this->dashboard->buildSales()],
             // Wrapped under 'months' — buildRevenueSummary()/buildMonthlyTrend()

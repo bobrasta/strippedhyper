@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Machine;
 use App\Models\Quotation;
 use App\Models\SalesLead;
-use App\Models\ServiceTicket;
 use App\Models\User;
 use App\Services\EffectivePermissionResolver;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,14 +22,12 @@ use Illuminate\Support\Facades\DB;
  *   sends or converts it), created in the period;
  * - of those, matured to an invoice: quotation → sales order → a final,
  *   non-cancelled invoice (any date);
- * - installations: machines installed_by, installed_at in the period;
- * - services: repair tickets assigned_to, resolved in the period;
  * - deals won: leads assigned_to now at "won", last updated in the period
  *   (leads keep no won date of their own).
  */
 class ContributionController extends Controller
 {
-    public const METRICS = ['quotations', 'quotations_invoiced', 'installations', 'services', 'deals_won'];
+    public const METRICS = ['quotations', 'quotations_invoiced', 'deals_won'];
 
     public function index(Request $request)
     {
@@ -42,8 +38,6 @@ class ContributionController extends Controller
         $metrics = [
             'quotations' => $count($this->quotations($from, $to), 'created_by'),
             'quotations_invoiced' => $count($this->quotations($from, $to)->whereExists($this->matured()), 'created_by'),
-            'installations' => $count($this->installations($from, $to), 'installed_by'),
-            'services' => $count($this->services($from, $to), 'assigned_to'),
             'deals_won' => $count($this->dealsWon($from, $to), 'assigned_to'),
         ];
         $invoicedValue = $this->quotations($from, $to)->whereExists($this->matured())
@@ -82,18 +76,6 @@ class ContributionController extends Controller
                     'invoice' => DB::table('sales_orders')->join('invoices', 'invoices.sales_order_id', '=', 'sales_orders.id')
                         ->where('sales_orders.quotation_id', $q->id)->whereNotIn('invoices.status', ['draft', 'proforma', 'cancelled'])
                         ->value('invoices.invoice_number'),
-                ]),
-            'installations' => $this->installations($from, $to)->where('installed_by', $user->id)->with('hospital:id,name')
-                ->latest('installed_at')->get()
-                ->map(fn (Machine $m) => [
-                    'id' => $m->id, 'reference' => $m->serial_no, 'title' => trim("{$m->model} · " . ($m->hospital?->name ?? '—'), ' ·'),
-                    'date' => $m->installed_at?->toDateString(),
-                ]),
-            'services' => $this->services($from, $to)->where('assigned_to', $user->id)->with('hospital:id,name')
-                ->latest('resolved_at')->get()
-                ->map(fn (ServiceTicket $t) => [
-                    'id' => $t->id, 'reference' => $t->ticket_number, 'title' => $t->hospital?->name ?? '—',
-                    'date' => Carbon::parse($t->resolved_at)->toDateString(),
                 ]),
             'deals_won' => $this->dealsWon($from, $to)->where('assigned_to', $user->id)->with('hospital:id,name')->latest('updated_at')->get()
                 ->map(fn (SalesLead $l) => [
@@ -137,17 +119,6 @@ class ContributionController extends Controller
             ->join('invoices', 'invoices.sales_order_id', '=', 'sales_orders.id')
             ->whereColumn('sales_orders.quotation_id', 'quotations.id')
             ->whereNotIn('invoices.status', ['draft', 'proforma', 'cancelled']);
-    }
-
-    private function installations(Carbon $from, Carbon $to): Builder
-    {
-        return Machine::query()->whereNotNull('installed_by')->whereBetween('installed_at', [$from, $to]);
-    }
-
-    private function services(Carbon $from, Carbon $to): Builder
-    {
-        return ServiceTicket::query()->where('type', '!=', 'installation')->whereNotNull('assigned_to')
-            ->whereNotNull('resolved_at')->whereBetween('resolved_at', [$from, $to]);
     }
 
     private function dealsWon(Carbon $from, Carbon $to): Builder

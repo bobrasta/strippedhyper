@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalLog;
 use App\Models\Department;
-use App\Models\Machine;
 use App\Models\PurchaseOrder;
 use App\Models\Shipment;
 use App\Services\NotificationTemplateService;
@@ -389,7 +388,7 @@ class ShipmentController extends Controller
         }
     }
 
-    // ---------------------------------------------- clearing fee, machines
+    // ---------------------------------------------- clearing fee
 
     /**
      * Links the clearing agent's Section 16 vendor fee: either an existing
@@ -424,17 +423,6 @@ class ShipmentController extends Controller
         if (empty($data['vendor_fee_id'])) {
             app(VendorFeeFlow::class)->start($fee); // Patrick first, then Finance
         }
-
-        return response()->json(['data' => $this->detail($request, $shipment)]);
-    }
-
-    public function syncMachines(Request $request, Shipment $shipment)
-    {
-        $this->assertManage($request);
-        $data = $request->validate(['machine_ids' => ['present', 'array'], 'machine_ids.*' => ['integer', 'exists:machines,id']]);
-        $shipment->machines()->sync($data['machine_ids']);
-        activity()->performedOn($shipment)->causedBy($request->user())
-            ->withProperties(['machine_ids' => $data['machine_ids']])->log('machines updated');
 
         return response()->json(['data' => $this->detail($request, $shipment)]);
     }
@@ -854,7 +842,7 @@ class ShipmentController extends Controller
     {
         $s->load(['supplier:id,name', 'carrier:id,name,type', 'permitSentVendor:id,name', 'notifyUsers:id,name', 'purchaseOrder:id,po_number,status,total_amount', 'department.manager:id,name', 'tender:id,tender_number,title',
             'documents.uploader:id,name', 'events.user:id,name', 'vendorFee.receipts', 'vendorFee.vendor:id,name',
-            'vendorFee.deliveryJob', 'handlingFee.receipts', 'handlingFee.vendor:id,name', 'machines:id,serial_no,model,type', 'creator:id,name']);
+            'vendorFee.deliveryJob', 'handlingFee.receipts', 'handlingFee.vendor:id,name', 'creator:id,name']);
 
         $labels = $this->flow->labels($s);
         $required = ShipmentFlow::requiredFor($s);
@@ -888,7 +876,6 @@ class ShipmentController extends Controller
                     'uploaded_by' => $docs->get($t)?->uploader?->name,
                     'uploaded_at' => $docs->get($t)?->updated_at?->toIso8601String(),
                 ])->values(),
-            'machines' => $s->machines->map(fn (Machine $m) => ['id' => $m->id, 'serial_no' => $m->serial_no, 'model' => $m->model, 'type' => $m->type])->values(),
             'events' => $s->events->map(fn (ShipmentEvent $e) => [
                 'from_step' => $e->from_step,
                 'to_step' => $e->to_step,

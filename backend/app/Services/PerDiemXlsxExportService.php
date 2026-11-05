@@ -45,7 +45,7 @@ class PerDiemXlsxExportService
     {
         $plan->loadMissing([
             'user', 'lines', 'teamLeadReviewer', 'reviewer', 'paymentInitiatedBy', 'paidBy',
-            'revisions.editor', 'adjustments.createdBy', 'serviceTicket',
+            'revisions.editor', 'adjustments.createdBy',
         ]);
 
         $lines = $plan->lines;
@@ -441,20 +441,18 @@ class PerDiemXlsxExportService
         $spreadsheet->addSheet($sheet);
 
         $row = 1;
-        $sheet->setCellValue("A{$row}", 'Ticket links per day');
+        $sheet->setCellValue("A{$row}", 'Sites per day');
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(13);
         $row += 2;
 
-        $sheet->fromArray(['Seq', 'Date', 'Site', 'Ticket #'], null, "A{$row}");
-        $sheet->getStyle("A{$row}:D{$row}")->getFont()->setBold(true);
+        $sheet->fromArray(['Seq', 'Date', 'Site'], null, "A{$row}");
+        $sheet->getStyle("A{$row}:C{$row}")->getFont()->setBold(true);
         $row++;
-        $ticketNumber = $plan->serviceTicket?->ticket_number;
         foreach ($plan->lines as $line) {
             $sheet->fromArray([
                 $line->seq_no,
                 $line->date?->format('d/m/Y'),
                 $line->site_name,
-                $ticketNumber,
             ], null, "A{$row}");
             $row++;
         }

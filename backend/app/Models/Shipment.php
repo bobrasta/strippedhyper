@@ -95,11 +95,6 @@ class Shipment extends Model
         return $this->hasMany(ShipmentEvent::class)->orderBy('id');
     }
 
-    public function machines()
-    {
-        return $this->belongsToMany(Machine::class);
-    }
-
     /** People picked to be notified of this shipment; they can also open it. */
     public function notifyUsers()
     {

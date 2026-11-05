@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Machine;
 use App\Models\Quotation;
 use App\Models\SalesActivity;
 use App\Models\SalesLead;
@@ -113,7 +112,6 @@ class SalesOverviewController extends Controller
             'reps'       => $this->ownerId ? [] : $this->reps($start, $end, $now, $repIds),
             'deals'      => $this->deals($open, $mask),
             'activity'   => $this->activity($now),
-            'warranties' => $this->warranties($now),
         ]]);
     }
 
@@ -266,39 +264,4 @@ class SalesOverviewController extends Controller
             ->sortByDesc('at')->values()->take(40)->all();
     }
 
-    // Warranties lapsing in the next 60 days — the moment to sell a service
-    // contract. There's no service-contract model yet, so no contract value
-    // or renewal status; "open deal" just says whether anyone is already
-    // working that hospital. A rep sees machines at hospitals they've sold to
-    // or hold a lead for.
-    private function warranties(Carbon $now): array
-    {
-        $hospitalIds = null;
-        if ($this->ownerId) {
-            $hospitalIds = SalesLead::where('assigned_to', $this->ownerId)->whereNotNull('hospital_id')->pluck('hospital_id')
-                ->concat(SalesOrder::where('created_by', $this->ownerId)->whereNotNull('hospital_id')->pluck('hospital_id'))
-                ->unique()->values();
-        }
-
-        $machines = Machine::with('hospital')
-            ->whereBetween('warranty_expiry', [$now->toDateString(), $now->copy()->addDays(60)->toDateString()])
-            ->when($hospitalIds !== null, fn ($q) => $q->whereIn('hospital_id', $hospitalIds))
-            ->orderBy('warranty_expiry')->get();
-
-        $openDealHospitals = SalesLead::whereNotIn('stage', ['won', 'lost'])
-            ->whereIn('hospital_id', $machines->pluck('hospital_id')->unique())
-            ->pluck('hospital_id')->unique()->flip();
-
-        return $machines->map(fn (Machine $m) => [
-            'machine_id'      => $m->id,
-            'hospital_id'     => $m->hospital_id,
-            'client'          => $m->hospital?->name ?? '—',
-            'model'           => $m->model,
-            'type'            => $m->type,
-            'serial_no'       => $m->serial_no,
-            'warranty_expiry' => Carbon::parse($m->warranty_expiry)->toDateString(),
-            'days_left'       => (int) $now->copy()->startOfDay()->diffInDays(Carbon::parse($m->warranty_expiry)),
-            'open_deal'       => isset($openDealHospitals[$m->hospital_id]),
-        ])->values()->all();
-    }
 }

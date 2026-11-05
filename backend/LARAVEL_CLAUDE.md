@@ -1,5 +1,38 @@
 # CLAUDE.md — Hypermed API (Laravel + PostgreSQL)
 
+> **Stripped build.** This copy of the backend has the **machines**
+> (installed-equipment fleet, transfers, warranty, fleet map), **service**
+> (service tickets, technician field work, service reports, checklists,
+> parts used, part cannibalization, ticket attachments, spare parts tied to
+> machines) and **hospitals-as-a-module** (directory/map/groups browse)
+> features removed. Removed code: the `Machine`, `MachineTransfer`,
+> `ServiceTicket*`, `TicketAttachment`, `ChecklistItem`, `PartUsed`,
+> `PartCannibalization`, `SparePart*`, `InventoryItemMachineModel` models and
+> their controllers/resources/seeders, `MachineCostService`,
+> `MachineModelNormalizer`, `MachineRegistrationService`, the
+> `ReportMachineModelDuplicates` command, `/machines/*`, `/tickets/*`,
+> `/part-cannibalizations/*`, `/dashboard/cto-overview`,
+> `/my/service-reports`, `/hospitals/groups` and `PUT /shipments/{id}/machines`.
+> Dashboards, search, performance, contributions, reports, connections,
+> sales overview, store dashboard, inventory history and the permission
+> seeder no longer emit machine/ticket/technician data.
+>
+> **Kept:** the `hospitals` table / `Hospital` model — it is the
+> customer/client record (`GET /hospitals?q=`, `GET/POST/PUT /hospitals/{id}`,
+> `/customers`, invoices/contacts/quotations carry `hospital_id`).
+>
+> **Database:** migrations are untouched, so the old tables (`machines`,
+> `service_tickets`, `service_ticket_machines`, `spare_parts`, `parts_used`,
+> `part_cannibalizations`, `ticket_attachments`, `machine_transfers`,
+> `checklist_items`, …) and FK columns on kept tables (`invoices.machine_id`,
+> `per_diem_requests.service_ticket_id`, `stock_out_requests.service_ticket_id`,
+> `serial_numbers.assigned_to_machine_id`, `hospitals.machine_count`, …) stay
+> in the schema, unused. `App\Models\ServiceTicket` / `ServiceTicketMachine`
+> survive only as bare stubs because two historical migrations import them.
+>
+> The sections below describe the original full system; anything about
+> machines, service tickets, spare parts or the fleet map no longer applies.
+
 ## What is Hypermed?
 
 Hypermed is a **medical equipment management platform** for a company that

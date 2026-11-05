@@ -3,7 +3,7 @@ builder = "nixpacks"
 
 [deploy]
 # Caches config/routes, runs migrations, bootstraps the permission catalog,
-# the test access-control accounts, and the real facility/machine import
+# the test access-control accounts, and the real facility (customer) import
 # (all three seeders guard themselves and no-op on every deploy after their
 # first successful run), then starts the built-in PHP server. Railway gives
 # each service a $PORT — artisan serve binds to it automatically.

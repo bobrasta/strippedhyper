@@ -14,7 +14,6 @@ use App\Services\ApprovalService;
 use App\Services\CreditCheckService;
 use App\Services\DocumentNumberService;
 use App\Services\FinancePostingService;
-use App\Services\MachineRegistrationService;
 use App\Services\NotificationTemplateService;
 use App\Services\StockService;
 use App\Support\LineDiscount;
@@ -209,7 +208,7 @@ class SalesOrderController extends Controller
     }
 
     // Deliver items — per-item quantities, auto-issues stock movements
-    public function deliver(Request $request, SalesOrder $salesOrder, StockService $stockService, MachineRegistrationService $machineRegistration)
+    public function deliver(Request $request, SalesOrder $salesOrder, StockService $stockService)
     {
         abort_if(! $request->user()->hasLogisticsDeliverAuthority(), 403, 'You are not authorised to deliver sales orders.');
         abort_if(!in_array($salesOrder->status, ['confirmed', 'delivering']), 422, 'Order must be confirmed before delivery.');
@@ -222,10 +221,9 @@ class SalesOrderController extends Controller
             'notes'                           => 'nullable|string',
         ]);
 
-        return DB::transaction(function () use ($data, $salesOrder, $stockService, $machineRegistration, $request) {
+        return DB::transaction(function () use ($data, $salesOrder, $stockService, $request) {
             $allDelivered = true;
             $location = $salesOrder->location;
-            $machinesCreated = [];
 
             foreach ($data['items'] as $delivered) {
                 $soItem = $salesOrder->items()->findOrFail($delivered['sales_order_item_id']);
@@ -249,13 +247,6 @@ class SalesOrderController extends Controller
                         $salesOrder,
                     );
                 }
-
-                if ($salesOrder->hospital_id && $soItem->inventoryItem) {
-                    $machinesCreated = array_merge($machinesCreated, $machineRegistration->registerForDelivery(
-                        $soItem->inventoryItem, $salesOrder->hospital_id, $salesOrder->order_number,
-                        $priorQtyDelivered, $qty, $salesOrder->id,
-                    ));
-                }
             }
 
             $salesOrder->update([
@@ -266,9 +257,6 @@ class SalesOrderController extends Controller
 
             return response()->json([
                 'data' => new SalesOrderResource($salesOrder->load(['createdBy', 'confirmedBy', 'deliveredBy', 'items.inventoryItem', 'location', 'hospital'])),
-                'machines_created' => collect($machinesCreated)->map(fn ($m) => [
-                    'id' => $m->id, 'serial_no' => $m->serial_no, 'model' => $m->model,
-                ]),
             ]);
         });
     }
