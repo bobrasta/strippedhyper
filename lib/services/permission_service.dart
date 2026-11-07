@@ -27,7 +27,7 @@ class PermissionService {
     return data.map((j) => UserPermissionOverride.fromJson(j as Map<String, dynamic>)).toList();
   }
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. allOverrides() takes no filters, so every call is the
   // default (company-wide) view.
   static List<UserPermissionOverride>? cachedAllOverrides;

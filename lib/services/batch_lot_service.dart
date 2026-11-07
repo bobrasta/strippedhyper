@@ -6,7 +6,7 @@ class BatchLotService {
   static final instance = BatchLotService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Keyed by item id — listForItem() has no filter params, so
   // every call is effectively the "unfiltered" query for that item.
   static final Map<int, List<BatchLot>> cachedByItemId = {};

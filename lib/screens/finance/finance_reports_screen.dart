@@ -61,7 +61,7 @@ class _FinanceReportsScreenState extends State<FinanceReportsScreen> with Single
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineListScreen's own
+    // Stale-while-revalidate — same reasoning as InventoryItemsScreen's own
     // fix: show the last-known bundle instantly on a fresh mount (this
     // widget isn't kept alive across navigation), then quietly refresh.
     // _bs (balance sheet) is the anchor — it takes no date range at all,

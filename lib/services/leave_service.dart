@@ -6,7 +6,7 @@ class LeaveService {
   static final instance = LeaveService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list()/balances()/types() each have several distinct call
   // "shapes" across the HR screens — each shape gets its own cache slot so
   // a filtered/scoped view never shows another view's stale data.

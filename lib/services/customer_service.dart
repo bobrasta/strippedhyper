@@ -6,8 +6,8 @@ class CustomerService {
   static final instance = CustomerService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
-  // reasoning.
+  // Stale-while-revalidate screen cache (last result served at once,
+  // refreshed in the background).
   static List<Customer>? cachedList;
   static final Map<int, Customer> cachedById = {};
 

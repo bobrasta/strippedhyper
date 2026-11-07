@@ -57,7 +57,7 @@ class _SalesOrdersScreenState extends State<SalesOrdersScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known order list immediately on
     // a return visit instead of blanking to a spinner, then quietly refresh
-    // in the background — see MachineService for the full reasoning.
+    // in the background (last result first, refreshed after).
     final cached = SalesOrderService.cachedDefaultList;
     if (cached != null) {
       _all = cached;

@@ -6,9 +6,9 @@ class LateArrivalService {
   static final instance = LateArrivalService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Scoped to only the default/unfiltered list, same as
-  // MachineService.cachedDefaultList.
+  // InventoryService.cachedDefaultList.
   static List<LateArrival>? cachedDefaultList;
 
   Future<List<LateArrival>> list({int? userId, String? dateFrom, String? dateTo}) async {

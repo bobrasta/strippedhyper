@@ -1,7 +1,7 @@
 import 'api_client.dart';
 
 /// One changed field, already made readable by the API (labels, and ids
-/// resolved to names): e.g. Position: Sales Manager → Field Technician.
+/// resolved to names): e.g. Position: Sales Representative → Sales Manager.
 class ActivityFieldChange {
   final String field;
   final String? oldValue;
@@ -76,7 +76,7 @@ class ActivityLogService {
   static final instance = ActivityLogService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Scoped to the default view only (page 1, no filters) — the
   // screen only ever shows this page immediately, then background-refreshes.
   static ActivityLogPage? cachedFirstPage;

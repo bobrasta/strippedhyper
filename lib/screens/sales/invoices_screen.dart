@@ -66,7 +66,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known invoice list immediately
     // on a return visit instead of blanking to a spinner, then quietly
-    // refresh in the background — see MachineService for the full reasoning.
+    // refresh in the background.
     final cached = InvoiceService.cachedDefaultList;
     if (cached != null) {
       _all = cached;

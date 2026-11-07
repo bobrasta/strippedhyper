@@ -31,7 +31,7 @@ class _BankReconciliationScreenState extends State<BankReconciliationScreen> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineListScreen's own
+    // Stale-while-revalidate — same reasoning as InventoryItemsScreen's own
     // fix: show the last-known list instantly on a fresh mount (this widget
     // isn't kept alive across navigation), then quietly refresh.
     final cached = BankReconciliationService.cachedDefaultList;

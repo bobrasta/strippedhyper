@@ -7,7 +7,7 @@ class StockMovementService {
   static final instance = StockMovementService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. cachedDefaultList covers the fully-unfiltered (no item, no
   // type) query used by the audit-trail screen; cachedByItemId covers the
   // per-item unfiltered (type == null) query used by an item's Movements tab.

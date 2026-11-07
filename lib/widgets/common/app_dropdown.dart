@@ -10,7 +10,7 @@ import 'labeled_field.dart';
 
 // Case/whitespace/hyphen/punctuation-insensitive match key — "xray",
 // "x-ray" and "X Ray" all normalize the same way. Used as the default
-// client-side filter and by the machine-model combobox specifically (see
+// client-side filter and by the model-name combobox specifically (see
 // hypermed_claude_code_prompt.md Section 4). Deliberately not fuzzy.
 String normalizeForSearch(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
@@ -333,7 +333,7 @@ class _AppMultiSelectFieldState<T> extends State<AppMultiSelectField<T>> {
 /// - Server-side: pass [asyncSearch]; debounced, shows loading/"no results".
 /// Never both empty — one of the two must be provided.
 /// Per hypermed_claude_code_prompt.md Section 4: use this everywhere a user
-/// picks from a long or growing list (hospitals, staff, machine models…).
+/// picks from a long or growing list (clients, staff, products…).
 ///
 /// [dropdown] is the plain-select variant every [DropdownFieldBox],
 /// [LabeledDropdown] and [AppSelectField] draws: a chevron instead of the
@@ -372,11 +372,11 @@ class AppSearchableSelectField<T> extends StatefulWidget {
   final String hint;
   final double? width;
   /// When set alongside [onCreateNew], an extra row offers creating a new
-  /// entry from the typed text if nothing matches (e.g. machine models).
+  /// entry from the typed text if nothing matches (e.g. product models).
   final String Function(String query)? createNewLabel;
   final ValueChanged<String>? onCreateNew;
   /// Fires on every keystroke with the raw typed text — for genuinely
-  /// free-text fields (like machine model) where the caller wants to fall
+  /// free-text fields (like a product model) where the caller wants to fall
   /// back to whatever's typed even if the user never explicitly picks a
   /// suggestion or the "Create new" row. Such a caller should setState
   /// with the text and pass it back as [selectedLabel], or the field

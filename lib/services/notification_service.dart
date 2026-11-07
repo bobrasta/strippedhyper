@@ -6,7 +6,7 @@ class NotificationService {
   static final instance = NotificationService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() takes no data filters (noCache only bypasses the
   // HTTP-response cache layer, not a query filter), so it's always cached.
   static List<AppNotification>? cachedDefaultList;

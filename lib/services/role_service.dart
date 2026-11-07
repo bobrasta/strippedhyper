@@ -6,7 +6,7 @@ class RoleService {
   static final instance = RoleService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Neither list() nor catalog() takes filters, so every call is
   // the default view.
   static List<RoleSummary>? cachedList;

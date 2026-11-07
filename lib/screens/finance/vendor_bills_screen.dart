@@ -66,7 +66,7 @@ class _VendorBillsScreenState extends State<VendorBillsScreen> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineListScreen's own
+    // Stale-while-revalidate — same reasoning as InventoryItemsScreen's own
     // fix: show the last-known bundle instantly on a fresh mount (this
     // widget isn't kept alive across navigation), then quietly refresh.
     final cached = VendorBillService.cachedDefaultList;

@@ -8,12 +8,12 @@ class InvoiceService {
   static final instance = InvoiceService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
-  // reasoning. cachedDefaultList only covers the unfiltered query.
+  // Stale-while-revalidate screen cache (last result served at once,
+  // refreshed in the background). cachedDefaultList only covers the unfiltered query.
   static List<Invoice>? cachedDefaultList;
   static final Map<int, Invoice> cachedById = {};
   static Map<String, dynamic>? cachedRevenueSummary;
-  static List<Map<String, dynamic>>? cachedRevenueByHospital;
+  static List<Map<String, dynamic>>? cachedRevenueByClient;
 
   Future<List<Invoice>> list({String? status, String? search, int? salesOrderId, Period? period, String? saleStatus}) async {
     final data = await ApiClient.getAllPages(_dio, '/invoices', query: {
@@ -154,7 +154,7 @@ class InvoiceService {
     return res.data!;
   }
 
-  Future<List<Map<String, dynamic>>> revenueByHospital({Period? period}) async {
+  Future<List<Map<String, dynamic>>> revenueByClient({Period? period}) async {
     try {
       final res = await _dio.get('/revenue/by-hospital', queryParameters: {
         'date_from': ?period?.fromIso,
@@ -162,7 +162,7 @@ class InvoiceService {
       });
       final (data, _) = ApiClient.unwrapList(res);
       final list = data.whereType<Map<String, dynamic>>().toList();
-      cachedRevenueByHospital = list;
+      cachedRevenueByClient = list;
       return list;
     } catch (_) {
       return [];

@@ -6,7 +6,7 @@ class PurchaseRequisitionService {
   static final instance = PurchaseRequisitionService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. cachedDefaultList only covers the unfiltered query.
   static List<PurchaseRequisition>? cachedDefaultList;
   static final Map<int, PurchaseRequisition> cachedById = {};

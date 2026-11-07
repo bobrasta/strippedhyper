@@ -8,7 +8,7 @@ class CreditNoteService {
   static final instance = CreditNoteService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() is always scoped to one invoice (no unfiltered
   // "default" variant), so it's cached by that invoice id rather than as a
   // single default list. Not currently wired into any screen's loading gate

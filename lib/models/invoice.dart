@@ -109,7 +109,7 @@ class InvoiceLineItem {
 class Invoice {
   final int           id;
   final String        invoiceNumber;
-  // Hospital invoices
+  // Client invoices (the API's hospital_* fields = the customer record)
   final int?          hospitalId;
   final String?       hospitalName;
   // Sales-linked invoices

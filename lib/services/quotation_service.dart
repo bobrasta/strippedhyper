@@ -8,8 +8,8 @@ class QuotationService {
   static final instance = QuotationService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
-  // reasoning. cachedDefaultList only covers the unfiltered query.
+  // Stale-while-revalidate screen cache (last result served at once,
+  // refreshed in the background). cachedDefaultList only covers the unfiltered query.
   static List<Quotation>? cachedDefaultList;
   static final Map<int, Quotation> cachedById = {};
 

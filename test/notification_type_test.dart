@@ -12,7 +12,7 @@ void main() {
     expect(_n('expense_paid').type, NotificationType.expensePaid);
   });
 
-  test('an unknown type is a plain system notice, not a service ticket', () {
+  test('an unknown type is a plain system notice', () {
     expect(_n('expense.submitted_manager').type, NotificationType.system);
     expect(_n('something_new').type, NotificationType.system);
   });

@@ -449,7 +449,7 @@ class _BrandPanel extends StatelessWidget {
 
       // Tagline
       const Text(
-        'Biomedical Enterprise\nPlatform',
+        'Business Management\nPlatform',
         style: TextStyle(
           color: AppColors.textMute,
           fontSize: 15.5,
@@ -494,7 +494,7 @@ class _BrandPanel extends StatelessWidget {
             fontWeight: FontWeight.w700,
           )),
         SizedBox(height: 2),
-        Text('Biomedical Enterprise Platform',
+        Text('Business Management Platform',
           style: TextStyle(
             color: AppColors.textMute,
             fontSize: 12,

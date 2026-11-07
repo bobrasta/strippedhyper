@@ -103,7 +103,7 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineListScreen's own
+    // Stale-while-revalidate — same reasoning as InventoryItemsScreen's own
     // fix: show the last-known bundle instantly on a fresh mount (this
     // widget isn't kept alive across navigation), then quietly refresh.
     // Only seeds when cachedProfitLoss is set, which only happens on a

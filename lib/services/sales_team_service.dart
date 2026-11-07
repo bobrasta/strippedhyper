@@ -67,8 +67,8 @@ class SalesTeamService {
   static final instance = SalesTeamService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
-  // reasoning. load() takes no filter params, so every call is the default
+  // Stale-while-revalidate screen cache (last result served at once,
+  // refreshed in the background). load() takes no filter params, so every call is the default
   // (single, unfiltered) view.
   static List<TeamMember>? cachedTeam;
   static List<TeamActivity>? cachedActivity;

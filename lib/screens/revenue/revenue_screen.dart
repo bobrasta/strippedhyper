@@ -40,7 +40,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
   Invoice? _selectedInvoice;
 
   List<Invoice>              _invoices         = [];
-  List<Map<String, dynamic>> _revenueByHosp    = [];
+  List<Map<String, dynamic>> _revenueByClient    = [];
   List<String>               _revenueMonths    = [];
   List<double>               _revenueActual    = [];
   List<double>               _revenueTarget    = [];
@@ -75,12 +75,12 @@ class _RevenueScreenState extends State<RevenueScreen> {
     // from its service's own cache so this screen doesn't blank to a
     // full-page spinner on every return visit.
     final invoices = InvoiceService.cachedDefaultList;
-    final revByHosp = InvoiceService.cachedRevenueByHospital;
+    final revByClient = InvoiceService.cachedRevenueByClient;
     final revSummary = InvoiceService.cachedRevenueSummary;
     final settings = SettingService.cachedAll;
     if (invoices != null) {
       _invoices = invoices;
-      if (revByHosp != null) _revenueByHosp = revByHosp;
+      if (revByClient != null) _revenueByClient = revByClient;
       if (revSummary != null) {
         _revenueMonths = (revSummary['months'] as List? ?? []).cast<String>();
         _revenueActual = (revSummary['actual'] as List? ?? []).map((e) => (e as num).toDouble()).toList();
@@ -102,7 +102,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
     try {
       final results = await Future.wait([
         InvoiceService.instance.list(period: _period),
-        InvoiceService.instance.revenueByHospital(period: _period),
+        InvoiceService.instance.revenueByClient(period: _period),
         // Monthly chart: Jan-Dec of the period's year (rolling 12 months
         // for all-time / cross-year ranges).
         InvoiceService.instance.revenueSummary(year: _period.year),
@@ -110,14 +110,14 @@ class _RevenueScreenState extends State<RevenueScreen> {
       final settings = await SettingService.instance.all();
       if (!mounted) return;
       final invoices  = results[0] as List<Invoice>;
-      final byHosp    = results[1] as List<Map<String, dynamic>>;
+      final byClient    = results[1] as List<Map<String, dynamic>>;
       final summary   = results[2] is Map<String, dynamic>
           ? results[2] as Map<String, dynamic>
           : <String, dynamic>{};
 
       setState(() {
         _invoices      = invoices;
-        _revenueByHosp = byHosp;
+        _revenueByClient = byClient;
         _revenueMonths = (summary['months'] as List? ?? []).cast<String>();
         _revenueActual = (summary['actual'] as List? ?? []).map((e) => (e as num).toDouble()).toList();
         _revenueTarget = (summary['target'] as List? ?? []).map((e) => (e as num).toDouble()).toList();
@@ -305,7 +305,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
             children: [
               _StatusBreakdownPanel(invoices: _invoices),
               _RecentTransactionsPanel(invoices: _invoices),
-              _TopClientsPanel(revenueByHospital: _revenueByHosp),
+              _TopClientsPanel(revenueByClient: _revenueByClient),
             ],
           ),
           const SizedBox(height: 16),
@@ -566,19 +566,19 @@ class _RecentTransactionsPanel extends StatelessWidget {
 }
 
 class _TopClientsPanel extends StatelessWidget {
-  const _TopClientsPanel({required this.revenueByHospital});
-  final List<Map<String, dynamic>> revenueByHospital;
+  const _TopClientsPanel({required this.revenueByClient});
+  final List<Map<String, dynamic>> revenueByClient;
 
   @override
   Widget build(BuildContext context) {
-    if (revenueByHospital.isEmpty) {
+    if (revenueByClient.isEmpty) {
       return _Panel(
         title: 'Top 5 Clients',
         icon: Symbols.star,
         child: Text('No client revenue yet', style: TextStyle(color: context.pal.textDim)),
       );
     }
-    final top = revenueByHospital.take(5).toList();
+    final top = revenueByClient.take(5).toList();
     final maxRev = top.map((x) => (x['revenue_monthly'] as num? ?? x['rev'] as num? ?? 0).toDouble())
         .fold(0.0, (a, b) => b > a ? b : a);
 
@@ -863,7 +863,7 @@ class _NewInvoiceDialogState extends State<_NewInvoiceDialog> {
                 const SizedBox(height: 14),
                 Row(children: [
                   Expanded(child: _RField('Invoice type', _type,
-                      const ['Product Sale', 'Spare Parts', 'Consultancy', 'Training', 'Other'],
+                      const ['Product Sale', 'Consumables', 'Consultancy', 'Training', 'Other'],
                       (v) => setState(() => _type = v))),
                   const SizedBox(width: 14),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

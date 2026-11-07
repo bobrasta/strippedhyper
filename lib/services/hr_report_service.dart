@@ -256,7 +256,7 @@ class HrReportService {
   static final instance = HrReportService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Each report is cached under the exact parameter shape the
   // HR dashboard/reports/leave-calendar screens actually call it with —
   // most of these reports take no filter at all, so a single slot per

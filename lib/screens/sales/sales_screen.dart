@@ -46,7 +46,7 @@ class _SalesScreenState extends State<SalesScreen> {
   String?         _error;
   bool            _autoOpenedLead = false;
   String? _repFilter;
-  String? _machineFilter;
+  String? _productFilter;
   // Phone board: each stage takes 86% of the width, the next one peeks in.
   final _phonePager = PageController(viewportFraction: 0.86);
 
@@ -61,8 +61,8 @@ class _SalesScreenState extends State<SalesScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known pipeline board
     // immediately on a return visit instead of blanking to a spinner, then
-    // quietly refresh in the background — see MachineService for the full
-    // reasoning.
+    // quietly refresh in the background — the cached list is
+    // replaced as soon as the fresh one arrives.
     final cached = SalesService.cachedDefaultList;
     if (cached != null) {
       _leads = cached;
@@ -101,11 +101,11 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   List<String> get _reps => _leads.map((l) => l.assigneeName).whereType<String>().toSet().toList()..sort();
-  List<String> get _machines => _leads.map((l) => l.machineType).toSet().toList()..sort();
+  List<String> get _products => _leads.map((l) => l.product).where((p) => p != '—').toSet().toList()..sort();
 
   List<SalesLead> get _filtered => _leads.where((l) {
     if (_repFilter != null && l.assigneeName != _repFilter) return false;
-    if (_machineFilter != null && l.machineType != _machineFilter) return false;
+    if (_productFilter != null && l.product != _productFilter) return false;
     return true;
   }).toList();
 
@@ -135,7 +135,7 @@ class _SalesScreenState extends State<SalesScreen> {
                 onPressed: () => setState(() => _showNewDeal = true)),
             filters: [
               _filterDropdown(context, 'Rep', Symbols.person, _repFilter, _reps, (v) => setState(() => _repFilter = v)),
-              _filterDropdown(context, 'Machine type', Symbols.medical_services, _machineFilter, _machines, (v) => setState(() => _machineFilter = v)),
+              _filterDropdown(context, 'Product', Symbols.inventory_2, _productFilter, _products, (v) => setState(() => _productFilter = v)),
             ],
           ) else Padding(
             padding: EdgeInsets.fromLTRB(pad, pad, pad, 0),
@@ -149,7 +149,7 @@ class _SalesScreenState extends State<SalesScreen> {
               ])),
               _filterDropdown(context, 'Rep', Symbols.person, _repFilter, _reps, (v) => setState(() => _repFilter = v)),
               const SizedBox(width: 8),
-              _filterDropdown(context, 'Machine type', Symbols.medical_services, _machineFilter, _machines, (v) => setState(() => _machineFilter = v)),
+              _filterDropdown(context, 'Product', Symbols.inventory_2, _productFilter, _products, (v) => setState(() => _productFilter = v)),
               const SizedBox(width: 8),
               FilledButton.icon(onPressed: () => setState(() => _showNewDeal = true), icon: const Icon(Symbols.add, size: 16), label: const Text('New lead')),
             ]),
@@ -386,11 +386,12 @@ class _KanbanCard extends StatelessWidget {
           ]),
           const SizedBox(height: 7),
           Wrap(spacing: 6, runSpacing: 4, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: context.pal.surface3, borderRadius: BorderRadius.circular(5)),
-              child: Text(lead.machineType, style: AppTheme.monoXs.copyWith(fontSize: 9.5)),
-            ),
+            if (lead.product != '—')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: context.pal.surface3, borderRadius: BorderRadius.circular(5)),
+                child: Text(lead.product, style: AppTheme.monoXs.copyWith(fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
             if (lead.source != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -516,7 +517,7 @@ class _LeadEditDialogState extends State<_LeadEditDialog> {
               child: Icon(Symbols.close, size: 18, color: context.pal.textDim)),
         ]),
         const SizedBox(height: 4),
-        Text('${widget.lead.contact} · ${widget.lead.machineType} · TSh ${(widget.lead.dealValue / 1e6).toStringAsFixed(0)}M',
+        Text('${widget.lead.contact}${widget.lead.product == '—' ? '' : ' · ${widget.lead.product}'} · TSh ${(widget.lead.dealValue / 1e6).toStringAsFixed(0)}M',
             style: AppTheme.bodySub.copyWith(fontSize: 11.5)),
         const SizedBox(height: 18),
 
@@ -579,7 +580,7 @@ class _NewDealDialogState extends State<_NewDealDialog> {
   final _contCtrl  = TextEditingController();
   final _valueCtrl = TextEditingController();
   final _sourceNotesCtrl = TextEditingController();
-  String  _machine = 'Hematology Analyzer';
+  final _productCtrl = TextEditingController();
   String  _stage   = 'lead';
   String  _source  = 'other';
   int?    _assignedTo;
@@ -607,7 +608,7 @@ class _NewDealDialogState extends State<_NewDealDialog> {
 
   @override
   void dispose() {
-    _hospCtrl.dispose(); _contCtrl.dispose(); _valueCtrl.dispose(); _sourceNotesCtrl.dispose();
+    _hospCtrl.dispose(); _contCtrl.dispose(); _valueCtrl.dispose(); _sourceNotesCtrl.dispose(); _productCtrl.dispose();
     super.dispose();
   }
 
@@ -618,7 +619,7 @@ class _NewDealDialogState extends State<_NewDealDialog> {
       await SalesService.instance.create({
         'hospital_name_raw': _hospCtrl.text.trim(),
         'contact_name_raw':  _contCtrl.text.trim(),
-        'machine_type': _machine,
+        'machine_type': _productCtrl.text.trim().isEmpty ? null : _productCtrl.text.trim(),
         'deal_value':  int.tryParse(_valueCtrl.text.replaceAll(',', '')) ?? 0,
         'stage':       _stage,
         'source':       _source,
@@ -669,16 +670,10 @@ class _NewDealDialogState extends State<_NewDealDialog> {
               child: Column(children: [
                 _SField('Client', _hospCtrl, 'Client or company name'),
                 const SizedBox(height: 14),
-                _SField('Contact person', _contCtrl, 'e.g. Dr. James Mbeki'),
+                _SField('Contact person', _contCtrl, 'e.g. James Mbeki'),
                 const SizedBox(height: 14),
                 Row(children: [
-                  Expanded(child: _SDrop(
-                    label: 'Machine Type',
-                    value: _machine,
-                    items: const ['Hematology Analyzer', 'Ultrasound Unit', 'Ventilator',
-                        'ECG Machine', 'Patient Monitor', 'Defibrillator'],
-                    onChanged: (v) => setState(() => _machine = v),
-                  )),
+                  Expanded(child: _SField('Product / service of interest', _productCtrl, 'What the client wants to buy')),
                   const SizedBox(width: 14),
                   Expanded(child: _SField('Deal Value (TSh)', _valueCtrl, '150000000', numeric: true)),
                 ]),

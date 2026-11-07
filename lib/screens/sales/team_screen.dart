@@ -38,8 +38,7 @@ class _TeamScreenState extends State<TeamScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known team + activity feed
     // immediately on a return visit instead of blanking to a spinner, then
-    // quietly refresh in the background — see MachineService for the full
-    // reasoning. cachedTeam (not cachedTeam.isNotEmpty) is the presence
+    // quietly refresh in the background. cachedTeam (not cachedTeam.isNotEmpty) is the presence
     // signal since a manager legitimately having zero reports is a valid,
     // already-loaded state, not "nothing fetched yet".
     final cachedTeam = SalesTeamService.cachedTeam;

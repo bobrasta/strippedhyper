@@ -73,17 +73,17 @@ class RepCommit {
 }
 
 class ClosingDeal {
-  const ClosingDeal({required this.id, required this.client, required this.machineType, required this.closeDate,
+  const ClosingDeal({required this.id, required this.client, required this.product, required this.closeDate,
       required this.category, required this.value, this.rep});
   final int id, value;
-  final String client, machineType, category; // commit | best_case | pipeline
+  final String client, product, category; // commit | best_case | pipeline
   final DateTime? closeDate;
   final String? rep;
 
   factory ClosingDeal.fromJson(Map<String, dynamic> j) => ClosingDeal(
     id: _toInt(j['id']),
     client: j['client'] as String? ?? '—',
-    machineType: j['machine_type'] as String? ?? '—',
+    product:     j['machine_type'] as String? ?? '—',
     closeDate: DateTime.tryParse(j['expected_close_date'] as String? ?? ''),
     category: j['forecast_category'] as String? ?? 'pipeline',
     value: _toInt(j['value']),
@@ -163,7 +163,7 @@ class SalesOverviewService {
   static final instance = SalesOverviewService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate cache per period — see MachineService.
+  // Stale-while-revalidate cache per period (last result first, refreshed after).
   static final Map<String, SalesOverview> cached = {};
 
   Future<SalesOverview> load({String period = 'quarter'}) async {

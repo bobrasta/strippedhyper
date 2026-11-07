@@ -48,7 +48,7 @@ const _business = [
   NavDestination(icon: Symbols.shopping_cart,           label: 'Purchases',  key: 'purchases'),
   // 'sales' key triggers the expandable group — rendered separately below
   NavDestination(icon: Symbols.trending_up,             label: 'Sales',      key: 'sales'),
-  // Quotations on its own, for engineers who prepare them without the Sales
+  // Quotations on its own, for staff who prepare them without the Sales
   // menu (2026-10-23); hidden for anyone who has the Sales group.
   NavDestination(icon: Symbols.request_quote,           label: 'Quotations', key: 'quotations'),
   // 'finance' key triggers the expandable group — rendered separately below

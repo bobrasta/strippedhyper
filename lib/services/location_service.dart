@@ -6,7 +6,7 @@ class LocationService {
   static final instance = LocationService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Only covers the unfiltered/default query.
   static List<Location>? cachedDefaultList;
 

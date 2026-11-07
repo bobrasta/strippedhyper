@@ -246,7 +246,7 @@ class _ShipmentFormState extends State<_ShipmentForm> {
                     'Non-medical goods: all documents are optional and no TMDA permit is needed, so the shipment can be '
                     'completed without uploads.', icon: Symbols.inventory_2, tone: ProcTone.green)),
               LabeledTextField(label: "What's being shipped", controller: _desc,
-                  hint: 'e.g. Haematology analysers ×3 — Mnazi Mmoja Hospital'),
+                  hint: 'e.g. Haematology analysers ×3 — Acme Diagnostics Ltd'),
               const SizedBox(height: 12),
               formRow([
                 Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [

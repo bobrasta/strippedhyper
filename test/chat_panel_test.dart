@@ -57,7 +57,7 @@ void main() {
         } else if (p.endsWith('/api/messaging/conversations') && o.method == 'GET') {
           body = {'data': [
             conv(5, 'direct', unread: 2, last: msg(14, 2, 'Can you check the Mindray BC-5150 at Muhimbili before Friday? Thanks a lot')),
-            conv(6, 'group', title: 'Service team — northern zone engineers and coordinators', last: msg(20, 1, 'Spare parts arrived')),
+            conv(6, 'group', title: 'Sales team — northern zone reps and coordinators', last: msg(20, 1, 'New stock arrived')),
           ], 'meta': {'next_cursor': null}};
         } else if (p.endsWith('/conversations/5/messages') && o.method == 'GET') {
           body = {'data': [

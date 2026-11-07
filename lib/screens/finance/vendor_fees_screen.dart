@@ -69,7 +69,7 @@ class _VendorFeesScreenState extends State<VendorFeesScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tab = TabController(length: 3, vsync: this);
-    // Stale-while-revalidate — same reasoning as MachineListScreen's own
+    // Stale-while-revalidate — same reasoning as InventoryItemsScreen's own
     // fix: show the last-known bundle instantly on a fresh mount (this
     // widget isn't kept alive across navigation), then quietly refresh.
     final cached = VendorFeeService.cachedFees;
@@ -517,8 +517,8 @@ class _FeeDetailDialogState extends State<_FeeDetailDialog> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineDetailScreen's own
-    // fix: this dialog is a fresh widget/State every time it's opened (it
+    // Stale-while-revalidate — same reasoning as InventoryService's screen
+    // cache: this dialog is a fresh widget/State every time it's opened (it
     // only exists in the tree while `_openFee != null`), so seed from the
     // last-known fetch of this exact fee if we have one.
     final cached = VendorFeeService.cachedFeeById[widget.feeId];
@@ -1111,8 +1111,8 @@ class _JobDetailDialogState extends State<_JobDetailDialog> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineDetailScreen's own
-    // fix: this dialog is a fresh widget/State every time it's opened (it
+    // Stale-while-revalidate — same reasoning as InventoryService's screen
+    // cache: this dialog is a fresh widget/State every time it's opened (it
     // only exists in the tree while `_openJob != null`), so seed from the
     // last-known fetch of this exact job if we have one.
     final cached = VendorFeeService.cachedJobById[widget.jobId];

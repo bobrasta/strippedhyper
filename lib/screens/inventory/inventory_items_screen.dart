@@ -47,7 +47,7 @@ class _InventoryItemsScreenState extends State<InventoryItemsScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known catalog immediately (if
     // any) instead of blanking to a spinner on every navigation — see
-    // MachineService for the full reasoning.
+    // InventoryService for the full reasoning.
     final cached = InventoryService.cachedDefaultList;
     if (cached != null) { _allItems = cached; _loading = false; }
     _load();

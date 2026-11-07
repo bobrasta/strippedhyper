@@ -7,7 +7,7 @@ class VendorBillService {
   static final instance = VendorBillService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. cachedDefaultList only covers the unfiltered query.
   static List<VendorBill>? cachedDefaultList;
   static final Map<int, VendorBill> cachedById = {};

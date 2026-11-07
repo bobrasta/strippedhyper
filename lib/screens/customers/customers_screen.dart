@@ -23,7 +23,7 @@ import '../finance/receivables_screen.dart' show CustomerStatementScreen;
 import '../../main.dart' show userRoleNotifier, allowedScreenKeys, hasAccountantAuthority, can;
 import '../../widgets/common/phone_layout.dart';
 
-/// Customers = the client facilities we sell to or service; the people we
+/// Customers = the client organisations we sell to; the people we
 /// talk to there are each customer's contacts.
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -1194,7 +1194,7 @@ class _AddContactDialogState extends State<_AddContactDialog> {
       _CField('Job title', _titleCtrl, 'e.g. Head of Procurement'),
       const SizedBox(height: 14),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('HOSPITAL', style: AppTheme.labelCaps.copyWith(fontSize: 10)),
+        Text('CLIENT', style: AppTheme.labelCaps.copyWith(fontSize: 10)),
         const SizedBox(height: 6),
         AppSearchableSelectField<int>(
           hint: 'Search clients…',
@@ -1608,7 +1608,7 @@ class _EditContactDialogState extends State<_EditContactDialog> {
         _CField('Job title', _titleCtrl, ''),
         const SizedBox(height: 14),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('HOSPITAL', style: AppTheme.labelCaps.copyWith(fontSize: 10)),
+          Text('CLIENT', style: AppTheme.labelCaps.copyWith(fontSize: 10)),
           const SizedBox(height: 6),
           AppSearchableSelectField<int>(
             hint: 'Search clients…',

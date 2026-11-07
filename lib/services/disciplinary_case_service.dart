@@ -8,7 +8,7 @@ class DisciplinaryCaseService {
   static final instance = DisciplinaryCaseService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Keyed by the user id it's scoped to.
   static final Map<int, List<DisciplinaryCase>> cachedByUserId = {};
 

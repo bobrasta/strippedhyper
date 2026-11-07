@@ -20,7 +20,7 @@ class AccountingService {
   static final instance = AccountingService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. cachedAccounts only covers the unfiltered query; the other
   // two fetch methods take no filters at all, so they always cache.
   static List<ChartOfAccount>? cachedAccounts;

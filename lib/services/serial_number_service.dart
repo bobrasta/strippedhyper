@@ -6,7 +6,7 @@ class SerialNumberService {
   static final instance = SerialNumberService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Keyed by item id, only for the unfiltered (status == null) query.
   static final Map<int, List<SerialNumber>> cachedByItemId = {};
 

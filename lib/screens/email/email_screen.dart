@@ -71,7 +71,7 @@ class _EmailScreenState extends State<EmailScreen> {
     // Stale-while-revalidate: skip both the account-check spinner and the
     // email-list spinner on a return visit when we already know accounts
     // exist and have the current folder's emails cached — same reasoning
-    // as MachineListScreen.
+    // as InventoryItemsScreen.
     final cachedAccounts = EmailAccountService.cachedAccounts;
     if (cachedAccounts != null) {
       _accounts = cachedAccounts;
@@ -200,7 +200,7 @@ class _EmailScreenState extends State<EmailScreen> {
 
   Future<void> _switchFolder(String folder) async {
     // Switching folders is an identity change, same as
-    // MachineDetailScreen's didUpdateWidget on a changed id — leaving the
+    // a detail screen's didUpdateWidget on a changed id — leaving the
     // OLD folder's emails showing under the NEW folder would be actively
     // wrong, so seed from that folder's own cache entry (or empty) rather
     // than carrying the previous folder's list over.

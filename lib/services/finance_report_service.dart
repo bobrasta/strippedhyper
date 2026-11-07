@@ -6,12 +6,12 @@ class FinanceReportService {
   static final instance = FinanceReportService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. The date-range reports only cache the call with no explicit
   // range (dateFrom/dateTo both null — the caller let the backend default
   // to the current period, which is what FinanceDashboardScreen's default
   // "This Month" period resolves to); a caller-supplied range is a genuine
-  // filter, same as a machine list's filtered query, so it isn't cached.
+  // filter, same as a filtered inventory query, so it isn't cached.
   // The reports below that take no date range at all always cache.
   static Map<String, dynamic>? cachedProfitLoss;
   static Map<String, dynamic>? cachedCashFlow;

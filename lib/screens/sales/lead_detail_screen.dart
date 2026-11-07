@@ -45,8 +45,7 @@ class _LeadDetailScreenState extends State<LeadDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineDetailScreen's own
-    // fix: show the last-known version of this exact lead instantly if
+    // Stale-while-revalidate: show the last-known version of this exact lead instantly if
     // we have one cached, then quietly refresh, instead of blanking to a
     // spinner on every navigation regardless of how fast the underlying
     // fetch resolves.
@@ -305,11 +304,13 @@ class _LeadDetailScreenState extends State<LeadDetailScreen> {
               const SizedBox(height: 4),
               Text(tshFromDouble(lead.dealValue.toDouble()), style: AppTheme.kpiValue.copyWith(fontSize: 22)),
             ])),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('MACHINE', style: AppTheme.monoXs.copyWith(fontSize: 9.5, color: context.pal.textMute)),
+            const SizedBox(width: 12),
+            Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text('PRODUCT', style: AppTheme.monoXs.copyWith(fontSize: 9.5, color: context.pal.textMute)),
               const SizedBox(height: 4),
-              Text(lead.machineType, style: AppTheme.bodySm.copyWith(fontSize: 12.5)),
-            ]),
+              Text(lead.product, style: AppTheme.bodySm.copyWith(fontSize: 12.5),
+                  textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ])),
           ]),
           const SizedBox(height: 12),
           Wrap(spacing: 18, runSpacing: 10, children: [

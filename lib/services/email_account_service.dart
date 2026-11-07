@@ -8,7 +8,7 @@ class EmailAccountService {
   static final instance = EmailAccountService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() takes no filters, so it's always cached.
   static List<EmailAccount>? cachedAccounts;
 

@@ -6,8 +6,8 @@ class ContactService {
   static final instance = ContactService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
-  // reasoning. cachedDefaultList only covers the unfiltered query.
+  // Stale-while-revalidate screen cache (last result served at once,
+  // refreshed in the background). cachedDefaultList only covers the unfiltered query.
   static List<Contact>? cachedDefaultList;
   static final Map<int, Contact> cachedById = {};
 

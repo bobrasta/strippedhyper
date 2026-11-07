@@ -6,7 +6,7 @@ class DelegationService {
   static final instance = DelegationService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() takes no filters, so every call is the default view.
   static List<Delegation>? cachedList;
 

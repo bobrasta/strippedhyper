@@ -8,7 +8,7 @@ class PublicHolidayService {
   static final instance = PublicHolidayService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() with no year is the "default" call (HR Settings);
   // a specific year (Leave Calendar) gets its own slot.
   static List<PublicHoliday>? cachedDefaultList;

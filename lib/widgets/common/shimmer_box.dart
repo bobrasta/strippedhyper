@@ -36,7 +36,7 @@ class ShimmerBox extends StatelessWidget {
 }
 
 /// Shimmer skeleton for a list-style row (icon + two text lines + badge).
-/// Matches the shape used by ticket list, hospital list, and contact list rows.
+/// Matches the shape used by client and contact list rows.
 class ShimmerListRow extends StatelessWidget {
   const ShimmerListRow({super.key, this.height = 64});
   final double height;
@@ -78,7 +78,7 @@ class ShimmerListRow extends StatelessWidget {
 }
 
 /// Shimmer skeleton for a table-style row (several column placeholders).
-/// Matches the shape used by machine list, spare parts, and revenue tables.
+/// Matches the shape used by inventory and revenue tables.
 class ShimmerTableRow extends StatelessWidget {
   const ShimmerTableRow({super.key, this.cols = 5});
   final int cols;

@@ -16,10 +16,10 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-const _categoryOrder = ['Approvals', 'Service', 'HR', 'Sales', 'Updates', 'System'];
+const _categoryOrder = ['Approvals', 'Inventory', 'HR', 'Sales', 'Updates', 'System'];
 const _categoryHeaders = {
   'Approvals': 'Approvals Needed',
-  'Service':   'Assigned to You',
+  'Inventory': 'Inventory',
   'HR':        'HR',
   'Sales':     'Sales',
   'Updates':   'Updates',
@@ -36,7 +36,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known notifications instantly
     // if we have them cached, then quietly refresh — same reasoning as
-    // MachineListScreen, so this screen doesn't blank to a shimmer on
+    // InventoryItemsScreen, so this screen doesn't blank to a shimmer on
     // every navigation.
     final cached = NotificationService.cachedDefaultList;
     if (cached != null) {

@@ -6,7 +6,7 @@ class TaxRateService {
   static final instance = TaxRateService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() takes no filters, so it always caches. Not currently
   // wired into any screen: both call sites (expenses_screen.dart and
   // vendor_bills_screen.dart's "New …" dialogs) are one-shot modal loads,

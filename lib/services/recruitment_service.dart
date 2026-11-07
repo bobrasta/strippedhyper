@@ -9,7 +9,7 @@ class RecruitmentService {
   static final instance = RecruitmentService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning.
   static List<Vacancy>? cachedDefaultVacancies; // vacancies() — no status filter
   static List<Applicant>? cachedTalentPool;     // applicants(talentPool: true)

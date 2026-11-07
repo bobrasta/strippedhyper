@@ -12,7 +12,7 @@ import '../../widgets/common/error_view.dart';
 
 /// Everything connected to one record — requisition, LPO, approvals,
 /// payments (and the account they left), supplier invoice, shipment,
-/// store receipt, sale, machine, customer invoice — with one timeline and
+/// store receipt, sale, customer invoice — with one timeline and
 /// the ledger entries they posted. Tap any record to follow the web from it.
 class ConnectionsScreen extends StatefulWidget {
   const ConnectionsScreen({super.key, required this.type, required this.id});
@@ -60,7 +60,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
     'stock_movement' => Symbols.swap_vert,
     'location' => Symbols.warehouse,
     'sales_order' => Symbols.request_quote,
-    'hospital' => Symbols.local_hospital,
+    'hospital' => Symbols.business,
     'delivery_job' => Symbols.local_shipping,
     'creditor_opening' => Symbols.account_balance,
     _ => Symbols.description,

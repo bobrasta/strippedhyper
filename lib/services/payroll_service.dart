@@ -212,7 +212,7 @@ class PayrollService {
   static final instance = PayrollService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. Per-id maps keyed by the run/user id the fetch is scoped to.
   static List<PayrollRun>? cachedRuns;
   static final Map<int, PayrollRun> cachedRunById = {};

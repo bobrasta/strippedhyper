@@ -6,8 +6,8 @@ class SalesService {
   static final instance = SalesService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
-  // reasoning. list() takes no filter params at all, so every call is the
+  // Stale-while-revalidate screen cache (last result served at once,
+  // refreshed in the background). list() takes no filter params at all, so every call is the
   // "default" list.
   static List<SalesLead>? cachedDefaultList;
   static final Map<int, SalesLead> cachedById = {};

@@ -14,7 +14,7 @@ final _json = <String, dynamic>{
   'payment_snapshot': {'provider': 'CRDB Bank', 'account_number': '********4821', 'account_name': 'YONAH LEONARD', 'masked': true},
   'service_ticket_id': 1574,
   'destination': 'Kagera & Kigoma', 'start_date': '2026-09-21', 'end_date': '2026-09-26', 'days_count': 6,
-  'amount': 735000, 'purpose': 'Preventive maintenance of X-ray and ultrasound machines at regional hospitals',
+  'amount': 735000, 'purpose': 'Client visits and product demonstrations in Kagera and Kigoma',
   'status': 'pending_director',
   'team_lead_reviewer_name': 'Asha Mollel', 'team_lead_reviewed_at': '2026-09-18T07:12:00Z',
   'reviewer_name': 'Neville Temu', 'reviewed_at': '2026-09-18T10:40:00Z',

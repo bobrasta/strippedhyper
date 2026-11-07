@@ -56,7 +56,7 @@ class AttendanceService {
   static final instance = AttendanceService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() has no "default" query (start/end are always
   // required), so it's cached by its own exact query key instead.
   static final Map<String, List<AttendanceRecord>> cachedByQuery = {};

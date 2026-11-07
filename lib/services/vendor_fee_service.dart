@@ -7,7 +7,7 @@ class VendorFeeService {
   static final instance = VendorFeeService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. cachedVendors/cachedFees/cachedDeliveryJobs only cover their
   // unfiltered query (the only shape VendorFeesScreen ever calls them with);
   // the *ById maps back the fee/job detail dialogs, keyed by the numeric id

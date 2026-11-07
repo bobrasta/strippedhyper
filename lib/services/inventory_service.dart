@@ -8,10 +8,17 @@ class InventoryService {
   static final instance = InventoryService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache (survives widget disposal, unlike
-  // State fields) — see MachineService for the full reasoning. Scoped to
-  // the default/unfiltered catalog query only; a filtered/searched list
-  // still shows the normal loading state.
+  // Widget-level stale-while-revalidate cache, on top of (not instead of)
+  // ApiClient's HTTP-response cache — the HTTP cache already makes a repeat
+  // fetch fast, but a screen that gates its whole body on `_loading` alone
+  // still blanks to a loading spinner on every navigation, however fast
+  // that fetch resolves. These static fields let a freshly-mounted screen
+  // show the last-known data immediately (surviving widget disposal, unlike
+  // State fields) while a real refresh happens silently in the background.
+  // Deliberately scoped to the DEFAULT/unfiltered catalog query only — a
+  // filtered query showing stale data from a different filter would be
+  // actively misleading, so filter/search changes still show the normal
+  // loading state. Other services' screen caches follow this pattern.
   static List<InventoryItem>? cachedDefaultList;
   static final Map<int, InventoryItem> cachedById = {};
 

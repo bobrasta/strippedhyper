@@ -70,7 +70,7 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known quotation list immediately
     // on a return visit instead of blanking to a spinner, then quietly
-    // refresh in the background — see MachineService for the full reasoning.
+    // refresh in the background.
     final cached = QuotationService.cachedDefaultList;
     if (cached != null) {
       _all = cached;
@@ -430,8 +430,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — same reasoning as MachineDetailScreen's own
-    // fix: show the last-known version of this exact quotation instantly if
+    // Stale-while-revalidate: show the last-known version of this exact quotation instantly if
     // we have one cached, then quietly refresh.
     final cached = QuotationService.cachedById[widget.quotationId];
     if (cached != null) { _qt = cached; _loading = false; }
@@ -658,7 +657,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
             (s) => s[0].toUpperCase() + s.substring(1))),
         if (qt.approvalStatus != 'not_required') ...[
           const SizedBox(width: 13),
-          Expanded(child: _stageCard(context, 'APPROVAL STATUS — SEPARATE MACHINE',
+          Expanded(child: _stageCard(context, 'APPROVAL STATUS — SEPARATE TRACK',
               qt.approvalStatus == 'pending' ? 0 : (qt.approvalStatus == 'approved' ? 1 : -1),
               const ['pending', 'approved', 'rejected'],
               (s) => s[0].toUpperCase() + s.substring(1), accent: AppColors.violet)),
@@ -1181,7 +1180,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                 error: _errors['tin'],
                 onChanged: (_) { if (_errors.containsKey('tin')) setState(() => _errors.remove('tin')); })),
             const SizedBox(width: 12),
-            Expanded(child: _formField('Contact', _contactCtrl, 'Dr. Name', context)),
+            Expanded(child: _formField('Contact', _contactCtrl, 'Contact name', context)),
             const SizedBox(width: 12),
             Expanded(child: _formField('Email', _emailCtrl, 'client@company.tz', context)),
           ]),

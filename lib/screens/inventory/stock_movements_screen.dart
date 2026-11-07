@@ -41,7 +41,7 @@ class _StockMovementsScreenState extends State<StockMovementsScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known unfiltered list immediately
     // (if any) instead of blanking to a spinner on every navigation — see
-    // MachineService for the full reasoning. Scoped to the default (no type
+    // InventoryService for the full reasoning. Scoped to the default (no type
     // filter) view, matching how StockMovementService.cachedDefaultList is
     // populated.
     final cached = StockMovementService.cachedDefaultList;

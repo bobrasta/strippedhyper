@@ -111,7 +111,8 @@ class SalesLead {
   final LeadSource? source;
   final String? sourceNotes;
   final String? notes;
-  final String machineType;
+  /// What the deal is for (`machine_type` in the API — free text).
+  final String product;
   final int    dealValue;
   final int    daysInStage;
   final int    daysOpen;
@@ -134,7 +135,7 @@ class SalesLead {
     this.source,
     this.sourceNotes,
     this.notes,
-    required this.machineType,
+    required this.product,
     required this.dealValue,
     required this.daysInStage,
     this.daysOpen = 0,
@@ -160,7 +161,7 @@ class SalesLead {
     source:      _parseSource(j['source'] as String?),
     sourceNotes: j['source_notes'] as String?,
     notes:       j['notes'] as String?,
-    machineType: j['machine_type'] as String? ?? '—',
+    product:     j['machine_type'] as String? ?? '—',
     dealValue:   (j['deal_value']  as num? ?? 0).toInt(),
     daysInStage: (j['days_in_stage'] as num? ?? 0).toInt(),
     daysOpen:    (j['days_open'] as num? ?? 0).toInt(),

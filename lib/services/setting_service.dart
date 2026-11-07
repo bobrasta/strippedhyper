@@ -5,7 +5,7 @@ class SettingService {
   static final instance = SettingService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning.
   static Map<String, String?>? cachedAll;
 

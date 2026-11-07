@@ -482,7 +482,7 @@ class _PeoplePickerState extends State<_PeoplePicker> {
         padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
         child: Column(children: [
           if (_group && !adding) ...[
-            LabeledTextField(label: 'Group name', controller: _title, hint: 'e.g. Service team',
+            LabeledTextField(label: 'Group name', controller: _title, hint: 'e.g. Sales team',
                 onChanged: (_) => setState(() {})),
             const SizedBox(height: 8),
           ],

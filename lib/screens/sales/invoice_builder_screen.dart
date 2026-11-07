@@ -79,7 +79,7 @@ class _InvoiceBuilderScreenState extends State<InvoiceBuilderScreen> {
   final _terms = TermsController();
   // final | draft | proforma | quotation
   String _saleStatus = 'final';
-  String? _hospitalLabel;
+  String? _clientLabel;
 
   bool get _isEdit => widget.editing != null;
   // A final sale can't go back to draft/proforma once saved.
@@ -136,7 +136,7 @@ class _InvoiceBuilderScreenState extends State<InvoiceBuilderScreen> {
     }
     _hospitalId = inv.hospitalId;
     if (inv.hospitalId != null) {
-      _hospitalLabel = inv.hospitalName ?? inv.displayName;
+      _clientLabel = inv.hospitalName ?? inv.displayName;
     }
   }
 
@@ -182,9 +182,9 @@ class _InvoiceBuilderScreenState extends State<InvoiceBuilderScreen> {
     return DateTime(y, month, _issueDate.day > lastDay ? lastDay : _issueDate.day);
   }
 
-  void _pickHospital(Client? h) => setState(() {
+  void _pickClient(Client? h) => setState(() {
     _hospitalId = h?.id;
-    _hospitalLabel = h?.name;
+    _clientLabel = h?.name;
     _errors.remove('client');
     if (h != null) {
       _clientCtrl.text = h.name;
@@ -435,10 +435,10 @@ class _InvoiceBuilderScreenState extends State<InvoiceBuilderScreen> {
         AppSearchableSelectField<Client>(
           label: 'Find client in directory',
           hint: 'Type a client name…',
-          selectedLabel: _hospitalLabel,
+          selectedLabel: _clientLabel,
           asyncSearch: (q) async => (await ClientService.instance.search(q))
               .map((h) => AppSelectItem(value: h, label: h.name)).toList(),
-          onSelected: (item) => _pickHospital(item?.value),
+          onSelected: (item) => _pickClient(item?.value),
         ),
         const SizedBox(height: 12),
         LayoutBuilder(builder: (context, cst) {

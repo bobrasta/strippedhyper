@@ -7,7 +7,7 @@ class BankReconciliationService {
   static final instance = BankReconciliationService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. list() takes no filters, so it's always the "default" query.
   static List<BankReconciliation>? cachedDefaultList;
   static final Map<int, BankReconciliation> cachedById = {};

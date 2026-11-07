@@ -7,7 +7,7 @@ class EmailService {
   static final instance = EmailService._();
   final _dio = ApiClient.instance.dio;
 
-  // Stale-while-revalidate screen cache — see MachineService for the full
+  // Stale-while-revalidate screen cache — see InventoryService for the full
   // reasoning. EmailScreen fetches a different folder's list via a
   // different method (inbox()/sent()/drafts()/folder()) rather than one
   // method with a folder param, so cache by the same folder key the
@@ -15,7 +15,7 @@ class EmailService {
   // name) instead of a single unfiltered-list field. Only inbox()'s fully
   // unfiltered call (no unread/search/accountId) is cached — a filtered
   // inbox view showing stale data from a different filter would be
-  // misleading, same reasoning as MachineService's own default-list cache.
+  // misleading, same reasoning as InventoryService's own default-list cache.
   static final Map<String, List<Email>> cachedByFolder = {};
 
   // ── Fetch ──────────────────────────────────────────────────────────────────

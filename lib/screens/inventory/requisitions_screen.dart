@@ -37,7 +37,7 @@ class _RequisitionsScreenState extends State<RequisitionsScreen> {
     super.initState();
     // Stale-while-revalidate: show the last-known list immediately (if any)
     // instead of blanking to a spinner on every navigation — see
-    // MachineService for the full reasoning.
+    // InventoryService for the full reasoning.
     final cached = PurchaseRequisitionService.cachedDefaultList;
     if (cached != null) { _prs = cached; _loading = false; }
     _load();

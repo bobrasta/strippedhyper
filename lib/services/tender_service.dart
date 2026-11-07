@@ -10,7 +10,7 @@ class TenderService {
 
   Map<String, dynamic> _map(Response res) => Map<String, dynamic>.from(ApiClient.unwrap(res) as Map);
 
-  // Stale-while-revalidate cache for the list (see MachineService).
+  // Stale-while-revalidate cache for the list (see InventoryService).
   static TenderList? cachedList;
 
   Future<TenderList> list({String? q}) async {

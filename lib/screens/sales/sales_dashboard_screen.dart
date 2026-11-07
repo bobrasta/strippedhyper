@@ -41,7 +41,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Stale-while-revalidate — see MachineService.
+    // Stale-while-revalidate (last result first, refreshed after).
     _data = SalesOverviewService.cached[_period];
     _kpi = SalesDashboardService.cachedData;
     _loading = _data == null;
@@ -608,7 +608,7 @@ class _DealsCard extends StatelessWidget {
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(x.client, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTheme.bodySm.copyWith(fontSize: 12.5)),
                       const SizedBox(height: 3),
-                      Text('${x.machineType}${x.closeDate != null ? ' · closes ${_shortDate(x.closeDate!)}' : ''}', style: AppTheme.bodySub.copyWith(fontSize: 11)),
+                      Text('${x.product}${x.closeDate != null ? ' · closes ${_shortDate(x.closeDate!)}' : ''}', style: AppTheme.bodySub.copyWith(fontSize: 11)),
                     ])),
                     _Chip(switch (x.category) { 'commit' => 'Commit', 'best_case' => 'Best case', _ => 'Pipeline' },
                         switch (x.category) { 'commit' => AppColors.cyan, 'best_case' => AppColors.amber, _ => context.pal.textMute }),
@@ -678,7 +678,7 @@ class _FeedCardState extends State<_FeedCard> {
     }
 
     return _Card(
-      icon: Symbols.monitor_heart,
+      icon: Symbols.event_note,
       iconColor: AppColors.cyan,
       title: d.isTeam ? 'Team activity' : 'My day',
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [

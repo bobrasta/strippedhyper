@@ -147,7 +147,7 @@ class _LogActivityDialogState extends State<_LogActivityDialog> {
               ),
           ]),
           const SizedBox(height: 14),
-          LabeledTextField(controller: _subject, label: 'What', hint: 'e.g. Site visit — ultrasound room survey'),
+          LabeledTextField(controller: _subject, label: 'What', hint: 'e.g. Site visit — product demo'),
           const SizedBox(height: 14),
           LabeledDropdown<int?>(
             label: 'Deal (optional)',
@@ -156,7 +156,7 @@ class _LogActivityDialogState extends State<_LogActivityDialog> {
             displayBuilder: (id) {
               if (id == null) return 'Not linked to a deal';
               final l = _openLeads.firstWhere((l) => l.id == id);
-              return '${l.hospital} · ${l.machineType}';
+              return l.product == '—' ? l.hospital : '${l.hospital} · ${l.product}';
             },
             onChanged: (v) => setState(() => _leadId = v),
           ),
