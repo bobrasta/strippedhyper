@@ -1,19 +1,37 @@
-# CLAUDE.md — bien-hyper
+# CLAUDE.md — Hypermed (stripped build)
 
-Hypermed (medical-equipment service, sales, finance, HR) Flutter client —
-desktop (Windows/Linux/macOS) and phone/tablet from one codebase.
+Stripped copy of the Hypermed (medical-equipment sales, finance, HR) Flutter
+client — desktop (Windows/Linux/macOS) and phone/tablet from one codebase —
+with its Laravel backend in `backend/`. Machines, service tickets and the
+hospitals directory are removed (see "Removed modules").
 
 ## Repos
 
 | Repo | Role |
 |---|---|
-| `bobrasta/bien-hyper` (this, `master`) | The Flutter app. Mobile layouts were built in `bobrasta/bien-hyper-mobile` (branch `mobile-ui-layout`) and merged here on 2026-10-04; new work, mobile included, goes on `master` here. |
-| `bobrasta/hypermed-api` | Laravel backend. Dashboard endpoints live in `DashboardController`. |
-| `bobrasta/hypermed-web` | Blade web client. |
+| `bobrasta/strippedhyper` (this, branch `claude/loving-pascal-n0azuk` for now) | Flutter app at the repo root, Laravel backend in `backend/`. |
+| `bobrasta/bien-hyper` | Original full Flutter app this was copied from. |
+| `bobrasta/hypermed-api` | Original full Laravel backend `backend/` was copied from. Dashboard endpoints live in `DashboardController`. |
 
 When a change touches a screen that has a phone layout, check both
 branches of it — e.g. the per-line TSh discount changed `line_items.dart`
 after the phone row was written.
+
+## Removed modules
+
+Do not re-add these when porting work from the originals:
+
+- App: machines (equipment fleet), service tickets / technician field
+  service, hospitals directory and map, flagged units, spare parts, CTO and
+  technician dashboards (and the CTO approval detail screen).
+- Backend: `/machines/*`, `/tickets/*`, `/part-cannibalizations/*`,
+  `/dashboard/cto-overview`, `/my/service-reports`, `/hospitals/groups`,
+  `PUT /shipments/{id}/machines`, and their models/controllers/seeders.
+- Kept on purpose: the `hospitals` table is the customer record. The app
+  calls `/hospitals` through `lib/models/client.dart` +
+  `lib/services/client_service.dart`. Travel plans (per diem) stay as an
+  expense flow. The admin dashboard is the "Command Centre" (finance, sales,
+  inventory, people).
 
 ## Mobile layout conventions
 
@@ -40,13 +58,14 @@ after the phone row was written.
 
 ## Verifying changes
 
-- `flutter analyze` — baseline is **56 info-level** notes (all pre-existing,
-  2 of them in upstream's CTO code). New warnings/errors are not OK.
+- `flutter analyze` — baseline is **43 info-level** notes (all pre-existing).
+  New warnings/errors are not OK.
 - `flutter test` — all pass except **`test/widget_test.dart` App smoke
   test, which fails on the original too** (trialNotifier never initialised).
-- `test/phone_layout_audit_test.dart` opens all 59 menu screens at 390×844
-  and 12 "new …" forms, failing on any overflow. It uses the test font
-  (wider than real fonts), so it also guards larger Text Size settings.
+- `test/phone_layout_audit_test.dart` opens all 63 menu screens at 390×844
+  and 15 "new …" forms (no machines/hospitals/service screens any more),
+  failing on any overflow. It uses the test font (wider than real fonts),
+  so it also guards larger Text Size settings.
 - Empty-data audits miss row/content overflows: for dashboards, render with
   realistic data (stub `ApiClient.instance.dio` with an interceptor keyed by
   path) and check at 390 px **and** 1440 px. Keep sample data out of the repo.
@@ -54,6 +73,13 @@ after the phone row was written.
   fonts with `FontLoader` (TildaSans from assets, MaterialSymbols from the
   pub cache, Roboto from the Flutter SDK; google_fonts' Inter/JetBrainsMono
   must be downloaded and registered as `Inter_700`, `JetBrainsMono_regular`, …).
+- Backend (`backend/`): read the "Stripped build" note at the top of
+  `backend/LARAVEL_CLAUDE.md` — the rest of that file describes the full
+  system. `composer test` / `php artisan test`; on Postgres the suite
+  matches the original (same 7 pre-existing failures). Migrations are
+  untouched, so old machine/ticket tables and FK columns stay unused, and
+  `ServiceTicket` / `ServiceTicketMachine` survive as bare model stubs
+  because two historical migrations import them — don't delete them.
 
 ## Local store, caching and alerts
 
@@ -87,7 +113,8 @@ after the phone row was written.
 - Fixed `childAspectRatio` grids make tiles absurdly tall on tablets; prefer
   `mainAxisExtent`.
 
-## Open items (as of 2026-10-04)
+## Open items
 
 - Never tested on a physical device; no Android APK has been built yet.
-- CTO approval detail screen not exercised at phone size.
+- `UPDATE_FEED_URL` still defaults to the full Hypermed release feed — give
+  the stripped build its own feed before releasing it (see README).
