@@ -294,23 +294,33 @@ class _TravelPlanDialogState extends State<TravelPlanDialog> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.teal.withValues(alpha: 0.25)),
                   ),
-                  child: Row(children: [
-                    _summaryStat('Days', '$_daysSpent'),
-                    const SizedBox(width: 16),
-                    _summaryStat('Sites', '$_sitesVisited'),
-                    const SizedBox(width: 16),
-                    _summaryStat('Labor', tshShort(_totalLabor)),
-                    const SizedBox(width: 16),
-                    _summaryStat('Per Diem', tshShort(_totalPerDiem)),
-                    const SizedBox(width: 16),
-                    _summaryStat('Transport', tshShort(_totalTransport)),
-                    const Spacer(),
-                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  child: LayoutBuilder(builder: (context, cst) {
+                    final stats = [
+                      _summaryStat('Days', '$_daysSpent'),
+                      _summaryStat('Sites', '$_sitesVisited'),
+                      _summaryStat('Labor', tshShort(_totalLabor)),
+                      _summaryStat('Per Diem', tshShort(_totalPerDiem)),
+                      _summaryStat('Transport', tshShort(_totalTransport)),
+                    ];
+                    final total = Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                       Text('GRAND TOTAL', style: AppTheme.labelCaps.copyWith(fontSize: 9)),
                       Text(tshShort(_grandTotal),
                           style: AppTheme.bodyStrong.copyWith(color: AppColors.teal, fontSize: 15)),
-                    ]),
-                  ]),
+                    ]);
+                    // Phones: the five figures wrap, the grand total sits below them.
+                    if (isPhoneWidth(cst.maxWidth)) {
+                      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        Wrap(spacing: 16, runSpacing: 8, children: stats),
+                        const SizedBox(height: 10),
+                        Align(alignment: Alignment.centerRight, child: total),
+                      ]);
+                    }
+                    return Row(children: [
+                      for (final (i, st) in stats.indexed) ...[if (i > 0) const SizedBox(width: 16), st],
+                      const Spacer(),
+                      total,
+                    ]);
+                  }),
                 ),
               ]),
             )),
@@ -318,16 +328,16 @@ class _TravelPlanDialogState extends State<TravelPlanDialog> {
             // Footer
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(children: [
+              child: LayoutBuilder(builder: (context, cst) => Row(children: [
                 Expanded(child: AppButton(label: 'Cancel', variant: BtnVariant.ghost, onPressed: widget.onClose)),
                 const SizedBox(width: 12),
                 Expanded(child: AppButton(
-                  label: _saving ? 'Submitting…' : 'Submit for Approval',
+                  label: _saving ? 'Submitting…' : (isPhoneWidth(cst.maxWidth) ? 'Submit' : 'Submit for Approval'),
                   icon: Symbols.send,
                   variant: BtnVariant.primary,
                   onPressed: _saving ? null : _save,
                 )),
-              ]),
+              ])),
             ),
           ]),
         ),
