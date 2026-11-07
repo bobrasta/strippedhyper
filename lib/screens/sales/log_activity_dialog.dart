@@ -162,7 +162,7 @@ class _LogActivityDialogState extends State<_LogActivityDialog> {
           ),
           if (_leadId == null) ...[
             const SizedBox(height: 14),
-            LabeledTextField(controller: _client, label: 'Client (optional)', hint: 'Hospital or clinic name'),
+            LabeledTextField(controller: _client, label: 'Client (optional)', hint: 'Client or company name'),
           ],
           const SizedBox(height: 14),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

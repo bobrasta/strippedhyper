@@ -28,7 +28,7 @@ class PhoneNotifications {
   );
   static const _general = AndroidNotificationDetails(
     'general', 'Notifications and email',
-    channelDescription: 'Approvals, tickets and new email',
+    channelDescription: 'Approvals, tasks and new email',
     importance: Importance.high,
     priority: Priority.high,
   );

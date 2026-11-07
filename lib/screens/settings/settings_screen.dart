@@ -1534,7 +1534,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'How you appear on approvals, tickets and payslips.',
+                'How you appear on approvals, tasks and payslips.',
                 style: AppTheme.bodySub.copyWith(
                   fontSize: 12.5,
                   color: AppColors.textDim,
@@ -2146,7 +2146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 children: [
                   Text(
-                    'These categories always escalate to the Director, regardless of amount —e.g. new order payments, machine imports.',
+                    'These categories always escalate to the Director, regardless of amount —e.g. new order payments, equipment imports.',
                     style: AppTheme.bodySub.copyWith(fontSize: 12),
                   ),
                   const SizedBox(height: 10),

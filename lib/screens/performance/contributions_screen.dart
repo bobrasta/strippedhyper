@@ -1,6 +1,6 @@
 // Staff contributions — who did what per person in a period: quotations
 // prepared (credited to whoever prepared them, engineers included), how many
-// became invoices, installations, services and deals won. The Director's
+// became invoices and deals won. The Director's
 // record for gauging bonuses: no formula and no amounts here, and every
 // number opens the records behind it.
 
@@ -23,12 +23,10 @@ String _role(String r) => r.replaceAll('_', ' ').toUpperCase();
 const _metricLabels = {
   'quotations': 'Quotations prepared',
   'quotations_invoiced': 'Quotations that became invoices',
-  'installations': 'Installations',
-  'services': 'Services',
   'deals_won': 'Deals won',
 };
 
-enum _Sort { name, quotations, invoiced, value, installations, services, deals }
+enum _Sort { name, quotations, invoiced, value, deals }
 
 class ContributionsScreen extends StatefulWidget {
   const ContributionsScreen({super.key});
@@ -68,8 +66,6 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
     _Sort.quotations => c.quotations,
     _Sort.invoiced => c.quotationsInvoiced,
     _Sort.value => c.invoicedValue,
-    _Sort.installations => c.installations,
-    _Sort.services => c.services,
     _Sort.deals => c.dealsWon,
     _Sort.name => 0,
   };
@@ -110,10 +106,10 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
           onRefresh: _load,
           child: ListView(padding: const EdgeInsets.fromLTRB(24, 14, 24, 24), children: [
             KpiStrip([
-              KpiStripItem(Symbols.request_quote, ProcTone.violet, 'Quotations prepared', '$quotes',
-                  '$invoiced became invoices'),
-              KpiStripItem(Symbols.build, ProcTone.teal, 'Installations', '${sum((c) => c.installations)}', 'machines installed'),
-              KpiStripItem(Symbols.handyman, ProcTone.amber, 'Services', '${sum((c) => c.services)}', 'repair tickets resolved'),
+              KpiStripItem(Symbols.request_quote, ProcTone.violet, 'Quotations prepared', '$quotes', 'credited to the preparer'),
+              KpiStripItem(Symbols.receipt_long, ProcTone.teal, 'Became invoices', '$invoiced',
+                  quotes == 0 ? 'none prepared' : '${(invoiced * 100 / quotes).round()}% of quotations'),
+              KpiStripItem(Symbols.payments, ProcTone.amber, 'Invoiced value', _tsh(sum((c) => c.invoicedValue)), 'from those quotations'),
               KpiStripItem(Symbols.handshake, ProcTone.green, 'Deals won', '${sum((c) => c.dealsWon)}', '${all.length} people with activity'),
             ]),
             const SizedBox(height: 14),
@@ -123,8 +119,7 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
             ]),
             const SizedBox(height: 10),
             const ProcNote('Counts only what was recorded in the system: quotations credit whoever prepared them, '
-                'installations the engineer who installed the machine, services the engineer assigned to the resolved ticket. '
-                'Work done before it was logged here isn\'t counted.'),
+                'deals won the person the lead is assigned to. Work done before it was logged here isn\'t counted.'),
             const SizedBox(height: 14),
             _table(context, _shown(all)),
           ]),
@@ -169,7 +164,7 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(color: pal.surface1, borderRadius: BorderRadius.circular(AppColors.rMd), border: Border.all(color: pal.border)),
       child: LayoutBuilder(builder: (context, box) {
-        if (box.maxWidth < 860) return Column(children: [for (final c in rows) _card(context, c)]);
+        if (box.maxWidth < 720) return Column(children: [for (final c in rows) _card(context, c)]);
         const gap = SizedBox(width: 14);
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
@@ -180,8 +175,6 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
               _th('Quotations', sort: _Sort.quotations, w: 90, right: true), gap,
               _th('Became invoices', sort: _Sort.invoiced, w: 130, right: true), gap,
               _th('Invoiced value', sort: _Sort.value, w: 140, right: true), gap,
-              _th('Installations', sort: _Sort.installations, w: 100, right: true), gap,
-              _th('Services', sort: _Sort.services, w: 90, right: true), gap,
               _th('Deals won', sort: _Sort.deals, w: 90, right: true),
             ]),
           ),
@@ -202,10 +195,6 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
               gap,
               SizedBox(width: 140, child: Text(c.invoicedValue == 0 ? '—' : _tsh(c.invoicedValue), textAlign: TextAlign.right,
                   style: procMono(context, color: c.invoicedValue == 0 ? pal.textDim : pal.text))),
-              gap,
-              _num(c, 'installations', w: 100),
-              gap,
-              _num(c, 'services'),
               gap,
               _num(c, 'deals_won'),
             ]),
@@ -237,8 +226,6 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
         stat('quotations', 'Quotations prepared'),
         stat('quotations_invoiced', 'Became invoices',
             text: '${c.quotationsInvoiced}${_pct(c)}${c.invoicedValue == 0 ? '' : ' · ${_tsh(c.invoicedValue)}'}'),
-        stat('installations', 'Installations'),
-        stat('services', 'Services'),
         stat('deals_won', 'Deals won'),
       ]),
     );

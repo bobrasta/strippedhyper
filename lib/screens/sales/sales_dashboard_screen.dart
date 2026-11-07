@@ -15,8 +15,8 @@ import 'sales_targets_dialog.dart';
 
 // Sales Dashboard v3 — "Will we land the quarter?". The top shows revenue
 // against target and whether committed deals cover the gap; the bottom shows
-// what moves that number: deals committed to close, the day's activity, and
-// warranties about to lapse. Same layout for the manager (whole team) and a
+// what moves that number: deals committed to close and the day's activity.
+// Same layout for the manager (whole team) and a
 // rep (own book, figures rounded server-side) — see SalesOverviewController
 // for every definition behind these numbers.
 
@@ -93,7 +93,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
       final forecast = _ForecastCard(d: d);
       final left = d.isTeam ? _RepsCard(d: d) : _DealsCard(d: d);
       final feed = _FeedCard(d: d);
-      final warranties = _WarrantyCard(d: d);
 
       return RefreshIndicator(
         onRefresh: _load,
@@ -114,8 +113,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 Expanded(flex: 115, child: left),
                 const SizedBox(width: 13),
                 Expanded(flex: 100, child: feed),
-                const SizedBox(width: 13),
-                Expanded(flex: 100, child: warranties),
               ])),
             ] else ...[
               SizedBox(height: 340, child: trend),
@@ -125,8 +122,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               SizedBox(height: 360, child: left),
               const SizedBox(height: 13),
               SizedBox(height: 380, child: feed),
-              const SizedBox(height: 13),
-              SizedBox(height: 360, child: warranties),
             ],
           ]),
         ),
@@ -188,7 +183,7 @@ String _shortDate(DateTime d) => '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 
 Color _pctColor(int p) => p >= 100 ? AppColors.green : p >= 90 ? AppColors.amber : AppColors.coral;
 
 class _Card extends StatelessWidget {
-  const _Card({required this.icon, required this.iconColor, required this.title, this.trailing, required this.child, this.footer, this.footerIcon, this.footerColor});
+  const _Card({required this.icon, required this.iconColor, required this.title, this.trailing, required this.child, this.footer, this.footerIcon});
   final IconData icon;
   final Color iconColor;
   final String title;
@@ -196,7 +191,6 @@ class _Card extends StatelessWidget {
   final Widget child;
   final String? footer;
   final IconData? footerIcon;
-  final Color? footerColor;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -221,7 +215,7 @@ class _Card extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(color: context.pal.surface2.withValues(alpha: 0.5), border: Border(top: BorderSide(color: context.pal.divider))),
           child: Row(children: [
-            Icon(footerIcon ?? Symbols.lightbulb, size: 14, color: footerColor ?? AppColors.amber),
+            Icon(footerIcon ?? Symbols.lightbulb, size: 14, color: AppColors.amber),
             const SizedBox(width: 8),
             Expanded(child: Text(footer!, style: AppTheme.bodySub.copyWith(fontSize: 11.5, color: context.pal.textMute))),
           ]),
@@ -739,69 +733,6 @@ class _FeedCardState extends State<_FeedCard> {
         const SizedBox(width: 8),
         Padding(padding: const EdgeInsets.only(top: 2), child: Text(time, style: AppTheme.monoXs.copyWith(fontSize: 10, color: a.upcoming ? AppColors.cyan : context.pal.textDim))),
       ]),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Warranties lapsing in 60 days. There's no service-contract model, so this
-// shows warranty expiry (the moment to sell a service contract) and whether
-// anyone already has an open deal at that hospital — not contract values.
-
-class _WarrantyCard extends StatelessWidget {
-  const _WarrantyCard({required this.d});
-  final SalesOverview d;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = d.warranties;
-    final urgent = w.where((x) => x.daysLeft <= 14 && !x.openDeal).toList();
-    final foot = w.isEmpty
-        ? null
-        : urgent.isNotEmpty
-            ? '${urgent.length} warrant${urgent.length == 1 ? 'y lapses' : 'ies lapse'} within 14 days with no open deal${urgent.length == 1 ? ' — ${urgent.first.client}' : ''}.'
-            : 'Every warranty lapsing in the next 14 days already has an open deal.';
-
-    return _Card(
-      icon: Symbols.autorenew,
-      iconColor: AppColors.amber,
-      title: 'Warranties expiring · 60 days',
-      trailing: Text('${w.length}', style: AppTheme.monoXs.copyWith(fontSize: 11, color: context.pal.text)),
-      footer: foot,
-      footerIcon: Symbols.error,
-      footerColor: AppColors.coral,
-      child: w.isEmpty
-          ? Padding(padding: const EdgeInsets.all(16), child: Text(
-              d.isTeam ? 'No machine warranties lapse in the next 60 days.' : 'No warranties lapse in the next 60 days at hospitals you work with.',
-              style: AppTheme.bodySub.copyWith(fontSize: 12)))
-          : ListView(padding: const EdgeInsets.symmetric(vertical: 4), children: [
-              for (final x in w)
-                Builder(builder: (context) {
-                  final hot = x.daysLeft <= 14 && !x.openDeal;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: context.pal.divider.withValues(alpha: context.pal.divider.a * 0.5)))),
-                    child: Row(children: [
-                      Container(
-                        width: 40, padding: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(color: hot ? AppColors.amber.withValues(alpha: 0.1) : context.pal.surface2, borderRadius: BorderRadius.circular(8)),
-                        child: Column(children: [
-                          Text('${x.daysLeft}', style: AppTheme.kpiValue.copyWith(fontSize: 15, height: 1.1, color: hot ? AppColors.amber : context.pal.textMute)),
-                          Text('DAYS', style: AppTheme.labelCaps.copyWith(fontSize: 8, color: hot ? AppColors.amber : context.pal.textDim)),
-                        ]),
-                      ),
-                      const SizedBox(width: 11),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(x.client, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTheme.bodySm.copyWith(fontSize: 12)),
-                        const SizedBox(height: 2),
-                        Text('${x.type} · ${x.model}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTheme.bodySub.copyWith(fontSize: 10.5)),
-                      ])),
-                      const SizedBox(width: 8),
-                      _Chip(x.openDeal ? 'Open deal' : 'No open deal', x.openDeal ? AppColors.green : AppColors.coral),
-                    ]),
-                  );
-                }),
-            ]),
     );
   }
 }

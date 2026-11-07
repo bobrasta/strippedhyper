@@ -35,9 +35,7 @@ class SearchResult {
 extension SearchResultTypeX on String {
   String get searchCategoryLabel => switch (this) {
     'page'                => 'Pages',
-    'machine'             => 'Machines',
     'hospital'            => 'Hospitals & customers',
-    'service_ticket'      => 'Service tickets',
     'inventory_item'      => 'Inventory',
     'supplier'            => 'Suppliers',
     'purchase_order'      => 'Purchase orders',
@@ -62,9 +60,7 @@ extension SearchResultTypeX on String {
 
   IconData get searchIcon => switch (this) {
     'page'                => Symbols.arrow_forward,
-    'machine'             => Symbols.precision_manufacturing,
     'hospital'            => Symbols.local_hospital,
-    'service_ticket'      => Symbols.confirmation_number,
     'inventory_item'      => Symbols.inventory_2,
     'supplier'            => Symbols.local_shipping,
     'purchase_order'      => Symbols.shopping_bag,

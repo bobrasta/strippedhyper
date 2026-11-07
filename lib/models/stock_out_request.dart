@@ -24,7 +24,6 @@ class StockOutRequest {
   final int             locationId;
   final String?         locationName;
   final int?            serviceTicketId;
-  final String?         serviceTicketNumber;
   final String          type; // issue | write_off
   final int             quantity;
   final String          reason;
@@ -46,7 +45,6 @@ class StockOutRequest {
     required this.locationId,
     this.locationName,
     this.serviceTicketId,
-    this.serviceTicketNumber,
     required this.type,
     required this.quantity,
     required this.reason,
@@ -69,7 +67,6 @@ class StockOutRequest {
     locationId:      (j['location_id'] as num? ?? 0).toInt(),
     locationName:    j['location_name'] as String?,
     serviceTicketId: j['service_ticket_id'] != null ? (j['service_ticket_id'] as num).toInt() : null,
-    serviceTicketNumber: j['service_ticket_number'] as String?,
     type:            j['type'] as String? ?? 'issue',
     quantity:        (j['quantity'] as num? ?? 0).toInt(),
     reason:          j['reason'] as String? ?? '',

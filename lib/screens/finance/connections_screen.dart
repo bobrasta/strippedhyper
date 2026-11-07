@@ -59,7 +59,6 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
     'serial_number' => Symbols.qr_code_2,
     'stock_movement' => Symbols.swap_vert,
     'location' => Symbols.warehouse,
-    'machine' => Symbols.precision_manufacturing,
     'sales_order' => Symbols.request_quote,
     'hospital' => Symbols.local_hospital,
     'delivery_job' => Symbols.local_shipping,

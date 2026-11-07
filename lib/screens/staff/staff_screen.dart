@@ -52,13 +52,11 @@ class _TeamMember {
     required this.initials, required this.role,
     required this.group,    required this.zone,
     required this.availStatus, required this.workload,
-    required this.variant,  this.currentTask,
-    this.staffIntId,
+    required this.variant,  this.staffIntId,
   });
   final String id, name, initials, role, group, zone, availStatus;
   final double workload;
   final AvatarVariant variant;
-  final String? currentTask;
   final int?    staffIntId;
 }
 
@@ -147,7 +145,6 @@ class _StaffScreenState extends State<StaffScreen> {
     availStatus: s.availStatus.label,
     workload:    s.workload,
     variant:     s.variant,
-    currentTask: s.currentTask,
     staffIntId:  s.id,
   );
 
@@ -780,8 +777,6 @@ class _TaskDetailPane extends StatelessWidget {
             const SizedBox(height: 8),
             Wrap(spacing: 6, runSpacing: 4, children: [
               _InfoPill(Symbols.person, task.assigneeName),
-              if (!task.isGeneral && task.hospital.isNotEmpty && task.hospital != '—')
-                _InfoPill(Symbols.local_hospital, task.hospital),
               _InfoPill(Symbols.calendar_today,
                   task.isGeneral ? 'Due ${task.dueTime}' : task.dueTime),
             ]),
@@ -859,10 +854,6 @@ class _TaskDetailPane extends StatelessWidget {
             if (task.isGeneral)
               _SchedItem(Symbols.task_alt, 'Task',    task.location),
             _SchedItem(Symbols.schedule,  task.isGeneral ? 'Due Date' : 'Reported', task.dueTime),
-            if (!task.isGeneral && task.hospital != '—')
-              _SchedItem(Symbols.local_hospital, 'Hospital', task.hospital),
-            if (!task.isGeneral && task.location.isNotEmpty && task.location != '—')
-              _SchedItem(Symbols.location_on, 'Ward', task.location),
           ]),
         ),
         const SizedBox(height: 24),
@@ -1272,10 +1263,6 @@ class _TeamMemberRow extends StatelessWidget {
         const SizedBox(height: 6),
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (member.currentTask != null)
-              Text(member.currentTask!, style: AppTheme.bodySub.copyWith(fontSize: 9.5),
-                  overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 3),
             ClipRRect(
               borderRadius: BorderRadius.circular(2),
               child: LinearProgressIndicator(

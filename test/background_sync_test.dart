@@ -6,7 +6,7 @@ import 'package:bienhypermed/services/local_db.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 AppNotification _notif(int id, {bool read = false}) => AppNotification.fromJson({
-      'id': id, 'type': 'ticket_assigned', 'title': 'Title $id', 'body': 'Body $id',
+      'id': id, 'type': 'task_assigned', 'title': 'Title $id', 'body': 'Body $id',
       'is_read': read, 'created_at': '2026-10-16',
     });
 

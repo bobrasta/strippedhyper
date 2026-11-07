@@ -19,19 +19,17 @@ class InventoryService {
     String? category,
     bool? lowStock,
     String? search,
-    bool? createsMachineRecord,
   }) async {
     final data = await ApiClient.getAllPages(_dio, '/inventory', query: {
       'category_id': ?category,
       if (lowStock == true) 'low_stock': 'true',
       'search':   ?search,
-      if (createsMachineRecord != null) 'creates_machine_record': createsMachineRecord.toString(),
       // Screens that call this load the full catalog once and paginate/filter
       // locally, so fetch every page — the API caps per_page at 1000 and the
       // catalog is past that since the Clickhuduma import.
     });
     final items = data.map((j) => InventoryItem.fromJson(j as Map<String, dynamic>)).toList();
-    if (category == null && lowStock != true && search == null && createsMachineRecord == null) {
+    if (category == null && lowStock != true && search == null) {
       cachedDefaultList = items;
     }
     return items;

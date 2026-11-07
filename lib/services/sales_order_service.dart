@@ -43,9 +43,7 @@ class SalesOrderService {
     return SalesOrder.fromJson(ApiClient.unwrap(res) as Map<String, dynamic>);
   }
 
-  /// Returns the updated order plus how many Machine records this delivery
-  /// registered (equipment items delivered to a hospital-linked order).
-  Future<(SalesOrder, int machinesCreated)> deliver(int id, {
+  Future<SalesOrder> deliver(int id, {
     required List<Map<String, dynamic>> items,
     String? notes,
   }) async {
@@ -53,10 +51,7 @@ class SalesOrderService {
       'items': items,
       'notes': ?notes,
     });
-    final body = res.data as Map<String, dynamic>;
-    final order = SalesOrder.fromJson(body['data'] as Map<String, dynamic>);
-    final machinesCreated = (body['machines_created'] as List?)?.length ?? 0;
-    return (order, machinesCreated);
+    return SalesOrder.fromJson(ApiClient.unwrap(res) as Map<String, dynamic>);
   }
 
   Future<SalesOrder> cancel(int id) async {

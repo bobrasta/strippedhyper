@@ -112,27 +112,9 @@ class SalesFeedItem {
   );
 }
 
-class ExpiringWarranty {
-  const ExpiringWarranty({required this.client, required this.model, required this.type, required this.serialNo,
-      required this.daysLeft, required this.openDeal});
-  final String client, model, type, serialNo;
-  final int daysLeft;
-  final bool openDeal;
-
-  factory ExpiringWarranty.fromJson(Map<String, dynamic> j) => ExpiringWarranty(
-    client: j['client'] as String? ?? '—',
-    model: j['model'] as String? ?? '',
-    type: j['type'] as String? ?? '',
-    serialNo: j['serial_no'] as String? ?? '',
-    daysLeft: _toInt(j['days_left']),
-    openDeal: j['open_deal'] == true,
-  );
-}
-
 class SalesOverview {
   const SalesOverview({required this.scope, required this.period, required this.targetsSet, required this.canSetTargets,
-      required this.months, required this.forecast, required this.reps, required this.deals, required this.activity,
-      required this.warranties});
+      required this.months, required this.forecast, required this.reps, required this.deals, required this.activity});
   final String scope;
   final SalesPeriod period;
   final bool targetsSet, canSetTargets;
@@ -141,7 +123,6 @@ class SalesOverview {
   final List<RepCommit> reps;
   final List<ClosingDeal> deals;
   final List<SalesFeedItem> activity;
-  final List<ExpiringWarranty> warranties;
 
   bool get isTeam => scope == 'team';
   bool get isMasked => scope == 'own';
@@ -159,7 +140,6 @@ class SalesOverview {
       reps: list('reps', RepCommit.fromJson),
       deals: list('deals', ClosingDeal.fromJson),
       activity: list('activity', SalesFeedItem.fromJson),
-      warranties: list('warranties', ExpiringWarranty.fromJson),
     );
   }
 }

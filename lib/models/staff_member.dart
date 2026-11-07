@@ -45,7 +45,6 @@ class StaffMember {
   final AvailStatus availStatus;
   final double workload; // 0.0–1.0
   final AvatarVariant variant;
-  final String? currentTask;
   final String? email;
   final String? phone;
   final bool? twoFa;
@@ -73,7 +72,6 @@ class StaffMember {
     this.availStatus = AvailStatus.available,
     this.workload = 0.0,
     this.variant = AvatarVariant.teal,
-    this.currentTask,
     this.email,
     this.phone,
     this.twoFa,
@@ -105,9 +103,6 @@ class StaffMember {
       availStatus: _parseStatus(j['avail_status'] as String? ?? j['availability'] as String? ?? 'available'),
       workload:    (j['workload'] as num? ?? 0).toDouble(),
       variant:     _variantFromId(id),
-      currentTask: j['current_task'] is Map
-          ? (j['current_task'] as Map)['title'] as String?
-          : j['current_task'] as String?,
       email:       j['email'] as String?,
       phone:       j['phone'] as String?,
       twoFa:       j['two_factor_enabled'] as bool? ?? j['two_fa'] as bool?,
@@ -139,7 +134,7 @@ class StaffMember {
   // for an active user, so including it would mean "nothing changed" never
   // actually holds and every poll would notify regardless.
   String get syncSignature => [
-    id, name, role, group, zone, availStatus, workload, currentTask,
+    id, name, role, group, zone, availStatus, workload,
     email, phone, twoFa, managerId, positionId, positionTitle, gender,
     hireDate, nextOfKinName, nextOfKinPhone, nextOfKinRelationship,
     nssfNumber, tinNumber, nidaNumber, biometricId,

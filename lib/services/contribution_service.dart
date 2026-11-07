@@ -14,8 +14,6 @@ class Contribution {
   int get quotations => _n('quotations');
   int get quotationsInvoiced => _n('quotations_invoiced');
   int get invoicedValue => _n('invoiced_value');
-  int get installations => _n('installations');
-  int get services => _n('services');
   int get dealsWon => _n('deals_won');
   int metric(String key) => _n(key);
 }

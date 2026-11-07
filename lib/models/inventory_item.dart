@@ -48,8 +48,6 @@ class InventoryItem {
   final bool    hasTbs;
   final Map<String, dynamic> specifications;
   final int?    preferredSupplierId;
-  final List<String> compatibleModels;
-  final bool    createsMachineRecord;
   final int?    warrantyMonths;
   final bool    needsReview;
 
@@ -86,8 +84,6 @@ class InventoryItem {
     this.hasTbs = false,
     this.specifications = const {},
     this.preferredSupplierId,
-    this.compatibleModels = const [],
-    this.createsMachineRecord = false,
     this.warrantyMonths,
     this.needsReview = false,
   });
@@ -128,9 +124,6 @@ class InventoryItem {
       preferredSupplierId: j['preferred_supplier_id'] != null
           ? (j['preferred_supplier_id'] as num).toInt()
           : null,
-      compatibleModels: (j['compatible_models'] as List? ?? [])
-          .map((e) => e.toString()).toList(),
-      createsMachineRecord: j['creates_machine_record'] as bool? ?? false,
       warrantyMonths: (j['warranty_months'] as num?)?.toInt(),
       needsReview: j['needs_review'] as bool? ?? false,
     );

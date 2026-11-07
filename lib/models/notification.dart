@@ -3,11 +3,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../theme/app_colors.dart';
 
 enum NotificationType {
-  serviceDue,
-  ticketAssigned,
-  ticketUpdated,
   paymentOverdue,
-  warrantyExpiring,
   dealUpdated,
   leadFollowUp,
   taskAssigned,
@@ -44,11 +40,7 @@ enum NotificationType {
 
 extension NotificationTypeX on NotificationType {
   String get label => switch (this) {
-    NotificationType.serviceDue         => 'Service Due',
-    NotificationType.ticketAssigned     => 'Ticket Assigned',
-    NotificationType.ticketUpdated      => 'Ticket Updated',
     NotificationType.paymentOverdue     => 'Payment Overdue',
-    NotificationType.warrantyExpiring   => 'Warranty Expiring',
     NotificationType.dealUpdated        => 'Deal Updated',
     NotificationType.leadFollowUp       => 'Follow-up Due',
     NotificationType.taskAssigned       => 'Task Assigned',
@@ -89,10 +81,6 @@ extension NotificationTypeX on NotificationType {
     NotificationType.stockOutRequested  => 'Approvals',
     NotificationType.perDiemPending     => 'Approvals',
     NotificationType.expensePending     => 'Approvals',
-    NotificationType.serviceDue         => 'Service',
-    NotificationType.ticketAssigned     => 'Service',
-    NotificationType.ticketUpdated      => 'Service',
-    NotificationType.warrantyExpiring   => 'Service',
     NotificationType.stockPullRequired  => 'Service',
     NotificationType.paymentOverdue     => 'Sales',
     NotificationType.dealUpdated        => 'Sales',
@@ -131,9 +119,6 @@ extension NotificationTypeX on NotificationType {
     NotificationType.stockOutRequested  => 'Review & Approve',
     NotificationType.perDiemPending     => 'Review & Approve',
     NotificationType.expensePending     => 'Review & Approve',
-    NotificationType.ticketAssigned     => 'View Ticket',
-    NotificationType.ticketUpdated      => 'View Ticket',
-    NotificationType.serviceDue         => 'View Ticket',
     NotificationType.leadFollowUp       => 'View Lead',
     NotificationType.dealUpdated        => 'View Lead',
     NotificationType.taskAssigned       => 'View Task',
@@ -153,7 +138,6 @@ extension NotificationTypeX on NotificationType {
     NotificationType.poRejected         => 'View',
     NotificationType.lateArrival        => null,
     NotificationType.paymentOverdue     => null,
-    NotificationType.warrantyExpiring   => null,
     NotificationType.stockPullRequired  => null,
     NotificationType.lowStockAlert      => null,
     NotificationType.tenderDeadline     => 'View Tender',
@@ -167,11 +151,7 @@ extension NotificationTypeX on NotificationType {
   };
 
   IconData get icon => switch (this) {
-    NotificationType.serviceDue        => Symbols.build,
-    NotificationType.ticketAssigned    => Symbols.confirmation_number,
-    NotificationType.ticketUpdated     => Symbols.update,
     NotificationType.paymentOverdue    => Symbols.warning,
-    NotificationType.warrantyExpiring  => Symbols.workspace_premium,
     NotificationType.dealUpdated       => Symbols.trending_up,
     NotificationType.leadFollowUp      => Symbols.hourglass_top,
     NotificationType.taskAssigned      => Symbols.assignment_ind,
@@ -207,11 +187,7 @@ extension NotificationTypeX on NotificationType {
   };
 
   Color get color => switch (this) {
-    NotificationType.serviceDue        => AppColors.amber,
-    NotificationType.ticketAssigned    => AppColors.teal,
-    NotificationType.ticketUpdated     => AppColors.blue,
     NotificationType.paymentOverdue    => AppColors.coral,
-    NotificationType.warrantyExpiring  => AppColors.amber,
     NotificationType.dealUpdated       => AppColors.violet,
     NotificationType.leadFollowUp      => AppColors.amber,
     NotificationType.taskAssigned      => AppColors.blue,
@@ -248,10 +224,7 @@ extension NotificationTypeX on NotificationType {
 }
 
 NotificationType _parseType(String s) => switch (s) {
-  'ticket_assigned'      => NotificationType.ticketAssigned,
-  'ticket_updated'       => NotificationType.ticketUpdated,
   'payment_overdue'      => NotificationType.paymentOverdue,
-  'warranty_expiring'    => NotificationType.warrantyExpiring,
   'deal_updated'         => NotificationType.dealUpdated,
   'lead_follow_up'       => NotificationType.leadFollowUp,
   'task_assigned'        => NotificationType.taskAssigned,
@@ -293,8 +266,8 @@ NotificationType _parseType(String s) => switch (s) {
   'meeting_minutes'       => NotificationType.meeting,
   'quotation_prepared'    => NotificationType.quotationPrepared,
   'system'               => NotificationType.system,
-  // Unknown types open the notifications page — they used to fall to
-  // serviceDue, which sent them to Service Tickets.
+  // Unknown types (including the retired service-ticket ones) open the
+  // notifications page.
   _                      => NotificationType.system,
 };
 

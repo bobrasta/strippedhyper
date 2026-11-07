@@ -1173,7 +1173,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
           Text('CLIENT', style: AppTheme.labelCaps.copyWith(fontSize: 11)),
           const SizedBox(height: 11),
           Row(children: [
-            Expanded(flex: 2, child: _formField('Client name *', _clientCtrl, 'Hospital or company', context,
+            Expanded(flex: 2, child: _formField('Client name *', _clientCtrl, 'Client or company', context,
                 error: _errors['client'],
                 onChanged: (_) { if (_errors.containsKey('client')) setState(() => _errors.remove('client')); })),
             const SizedBox(width: 12),
@@ -1183,7 +1183,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
             const SizedBox(width: 12),
             Expanded(child: _formField('Contact', _contactCtrl, 'Dr. Name', context)),
             const SizedBox(width: 12),
-            Expanded(child: _formField('Email', _emailCtrl, 'client@hospital.tz', context)),
+            Expanded(child: _formField('Email', _emailCtrl, 'client@company.tz', context)),
           ]),
         ]),
       ),

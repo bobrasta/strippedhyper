@@ -217,7 +217,6 @@ String connectionTypeLabel(String type) => switch (type) {
   'serial_number' => 'Serial',
   'stock_movement' => 'Stock movement',
   'location' => 'Store',
-  'machine' => 'Machine',
   'sales_order' => 'Sales order',
   'invoice' => 'Customer invoice',
   'payment' => 'Customer payment',

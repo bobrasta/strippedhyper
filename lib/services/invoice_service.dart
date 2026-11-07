@@ -15,17 +15,16 @@ class InvoiceService {
   static Map<String, dynamic>? cachedRevenueSummary;
   static List<Map<String, dynamic>>? cachedRevenueByHospital;
 
-  Future<List<Invoice>> list({String? status, String? search, int? salesOrderId, int? machineId, Period? period, String? saleStatus}) async {
+  Future<List<Invoice>> list({String? status, String? search, int? salesOrderId, Period? period, String? saleStatus}) async {
     final data = await ApiClient.getAllPages(_dio, '/invoices', query: {
       ...?period?.query,
       'sale_status':     ?saleStatus,
       'status':          ?status,
       'search':          ?search,
       'sales_order_id':  ?salesOrderId,
-      'machine_id':      ?machineId,
     });
     final invoices = data.map((j) => Invoice.fromJson(j as Map<String, dynamic>)).toList();
-    if (status == null && search == null && salesOrderId == null && machineId == null && saleStatus == null && (period?.isDefault ?? false)) {
+    if (status == null && search == null && salesOrderId == null && saleStatus == null && (period?.isDefault ?? false)) {
       cachedDefaultList = invoices;
     }
     return invoices;

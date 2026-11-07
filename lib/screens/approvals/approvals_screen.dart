@@ -324,7 +324,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> with SingleTickerProv
         if (mounted) showSuccessToast(context, 'Edit access revoked.');
       } else {
         await PerDiemService.instance.grantEditAccess(r.id);
-        if (mounted) showSuccessToast(context, 'Edit access granted to ${r.userName ?? 'the technician'}.');
+        if (mounted) showSuccessToast(context, 'Edit access granted to ${r.userName ?? 'the requester'}.');
       }
       _load();
     } catch (e) {
@@ -335,7 +335,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> with SingleTickerProv
   Future<void> _approveTechnicianEdit(PerDiemRequest r, PerDiemRevision rev) async {
     try {
       await PerDiemService.instance.approveTechnicianEdit(r.id, rev.id);
-      if (mounted) { showSuccessToast(context, 'Technician\'s edit applied.'); _load(); }
+      if (mounted) { showSuccessToast(context, 'Edit applied.'); _load(); }
     } catch (e) {
       if (mounted) showErrorToast(context, e);
     }
@@ -774,8 +774,7 @@ class _StockOutTab extends StatelessWidget {
                 style: AppTheme.bodyStrong.copyWith(fontSize: 13.5))),
           ]),
           const SizedBox(height: 8),
-          Text('${r.type == 'write_off' ? 'Write-off' : 'Issue'} · ${r.locationName ?? '—'} · requested by ${r.requesterName ?? '—'}'
-                  '${r.serviceTicketNumber != null ? ' · for ${r.serviceTicketNumber}' : ''}',
+          Text('${r.type == 'write_off' ? 'Write-off' : 'Issue'} · ${r.locationName ?? '—'} · requested by ${r.requesterName ?? '—'}',
               style: AppTheme.bodySm.copyWith(fontSize: 12.5)),
           if (r.reason.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -945,7 +944,7 @@ class _PerDiemTab extends StatelessWidget {
             ]),
             if (canCto && r.hasActiveEditGrant) ...[
               const SizedBox(height: 4),
-              Text('Technician has edit access — tap the unlocked icon to revoke.',
+              Text('The requester has edit access — tap the unlocked icon to revoke.',
                   style: AppTheme.bodySub.copyWith(fontSize: 10.5, color: AppColors.amber)),
             ],
             const SizedBox(height: 8),
@@ -1018,7 +1017,7 @@ class _PerDiemTab extends StatelessWidget {
                   ...r.revisions.where((rev) => rev.status != 'pending_cto_approval').map((rev) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
-                      '${rev.editorRole == 'cto' ? 'CTO' : 'Technician'} · ${rev.editedByName ?? '—'}: ${rev.reason}'
+                      '${rev.editorRole == 'cto' ? 'CTO' : 'Requester'} · ${rev.editedByName ?? '—'}: ${rev.reason}'
                       '${rev.status == 'rejected' ? ' (rejected)' : ''}',
                       style: AppTheme.bodySub.copyWith(fontSize: 11),
                     ),
@@ -1044,7 +1043,7 @@ class _PerDiemTab extends StatelessWidget {
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(
-                      '${pending.editedByName ?? 'Technician'} proposed an edit: ${pending.reason}',
+                      '${pending.editedByName ?? 'The requester'} proposed an edit: ${pending.reason}',
                       style: AppTheme.bodySm.copyWith(fontSize: 11.5, color: AppColors.blue),
                     ),
                     if (canCto) ...[

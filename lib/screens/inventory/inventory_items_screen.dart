@@ -588,19 +588,6 @@ class _ItemDetailPanel extends StatelessWidget {
         _Row('Stock Value',  costText(item.stockQty * item.unitCost, item.costCurrency)),
         _Row('Reorder At',   '${item.reorderLevel} ${item.unitOfMeasure}'),
         if (item.supplier.isNotEmpty) _Row('Supplier', item.supplier),
-        if (item.compatibleModels.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          Text('Compatible Machines', style: AppTheme.cardTitle.copyWith(fontSize: 12)),
-          const SizedBox(height: 6),
-          ...item.compatibleModels.map((m) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(children: [
-              Icon(Symbols.medical_services, size: 12, color: context.pal.textDim),
-              const SizedBox(width: 8),
-              Expanded(child: Text(m, style: AppTheme.bodySm.copyWith(fontSize: 12.5))),
-            ]),
-          )),
-        ],
         const SizedBox(height: 20),
         SizedBox(width: double.infinity, child: GestureDetector(
           onTap: onMove,
@@ -873,7 +860,6 @@ class _ItemFormModalState extends State<_ItemFormModal> {
   late bool   _hasCe    = widget.item?.hasCe  ?? false;
   late bool   _hasFda   = widget.item?.hasFda ?? false;
   late bool   _hasTbs   = widget.item?.hasTbs ?? false;
-  late bool   _createsMachineRecord = widget.item?.createsMachineRecord ?? false;
   late bool   _needsReview = widget.item?.needsReview ?? false;
   late final _warrantyCtrl = TextEditingController(
       text: widget.item?.warrantyMonths?.toString() ?? '');
@@ -934,7 +920,6 @@ class _ItemFormModalState extends State<_ItemFormModal> {
         'has_ce':         _hasCe,
         'has_fda':        _hasFda,
         'has_tbs':        _hasTbs,
-        'creates_machine_record': _createsMachineRecord,
         'warranty_months': _warrantyCtrl.text.trim().isEmpty ? null : int.tryParse(_warrantyCtrl.text.trim()),
         if (_isEdit) 'needs_review': _needsReview,
       };
@@ -1031,16 +1016,8 @@ class _ItemFormModalState extends State<_ItemFormModal> {
                   _CheckChip(label: 'TBS', value: _hasTbs, onChanged: (v) => setState(() => _hasTbs = v)),
                 ]),
                 const SizedBox(height: 14),
-                // Equipment tracking — when on, delivering this item to a
-                // hospital-linked sales order registers a Machine record
-                // (one per unit) for Service to pick up.
-                Wrap(spacing: 14, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.end, children: [
-                  _CheckChip(label: 'Installable Equipment', value: _createsMachineRecord,
-                      onChanged: (v) => setState(() => _createsMachineRecord = v)),
-                  if (_createsMachineRecord)
-                    SizedBox(width: 140, child: _Field(
-                        label: 'Warranty (months)', ctrl: _warrantyCtrl, hint: '12', numeric: true)),
-                ]),
+                Align(alignment: Alignment.centerLeft, child: SizedBox(width: 140, child: _Field(
+                    label: 'Warranty (months)', ctrl: _warrantyCtrl, hint: '12', numeric: true))),
                 if (_isEdit) ...[
                   const SizedBox(height: 14),
                   Row(children: [

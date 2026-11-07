@@ -146,8 +146,8 @@ const _tenderingChildren = [
 
 const _system = [
   NavDestination(icon: Symbols.trending_up,             label: 'My Performance', key: 'my_performance'),
-  // Who did what per person (quotations, invoices from them, installations,
-  // services) — the Director's record for gauging bonuses.
+  // Who did what per person (quotations, invoices from them, deals won) —
+  // the Director's record for gauging bonuses.
   NavDestination(icon: Symbols.workspace_premium,       label: 'Staff Contributions', key: 'contributions'),
   NavDestination(icon: Symbols.assessment,              label: 'Reports',       key: 'reports'),
   NavDestination(icon: Symbols.notifications,           label: 'Notifications', key: 'notifications'),

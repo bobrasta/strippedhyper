@@ -91,13 +91,6 @@ class InventoryItemDetailScreen extends StatelessWidget {
 // hashing the name across a small fixed palette.
 String _catLabel(String cat) => cat;
 
-List<Color> get _catPalette => [
-  AppColors.teal, AppColors.blue, AppColors.violet,
-  AppColors.amber, AppColors.coral, AppColors.info,
-];
-Color _catColor(String cat) =>
-    cat.isEmpty ? AppColors.textDim : _catPalette[cat.hashCode.abs() % _catPalette.length];
-
 class _InfoRow extends StatelessWidget {
   const _InfoRow(this.label, this.value);
   final String label, value;
@@ -144,7 +137,6 @@ class _OverviewTab extends StatelessWidget {
         : item.isLowStock
             ? AppColors.amber
             : AppColors.teal;
-    final catColor = _catColor(item.category);
     final catLabel = _catLabel(item.category);
 
     return SingleChildScrollView(
@@ -283,23 +275,6 @@ class _OverviewTab extends StatelessWidget {
               const SizedBox(height: 16),
             ],
 
-            // Compatible models
-            if (item.compatibleModels.isNotEmpty) ...[
-              _Section(
-                title: 'COMPATIBLE MACHINES',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: item.compatibleModels.map((m) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(children: [
-                      Icon(Symbols.medical_services, size: 14, color: catColor),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(m, style: AppTheme.bodySm.copyWith(fontSize: 12.5))),
-                    ]),
-                  )).toList(),
-                ),
-              ),
-            ],
           ]),
         ),
       ),
@@ -352,7 +327,7 @@ class _MovementsTabState extends State<_MovementsTab>
     super.initState();
     // Stale-while-revalidate: show the last-known movements for this item
     // immediately (if any) instead of blanking to a spinner on every
-    // navigation — see MachineService for the full reasoning.
+    // navigation.
     final cached = StockMovementService.cachedByItemId[widget.item.id];
     if (cached != null) { _movements = cached; _loading = false; }
     _load();
@@ -506,8 +481,7 @@ class _SuppliersTabState extends State<_SuppliersTab>
     final preferredId = widget.item.preferredSupplierId;
     if (preferredId != null) {
       // Stale-while-revalidate: show the last-known supplier immediately
-      // (if any) instead of blanking to a spinner on every navigation —
-      // see MachineService for the full reasoning.
+      // (if any) instead of blanking to a spinner on every navigation.
       final cached = SupplierService.cachedById[preferredId];
       if (cached != null) _supplier = cached;
       _loadSupplier();
@@ -666,7 +640,7 @@ class _BatchesTabState extends State<_BatchesTab>
     super.initState();
     // Stale-while-revalidate: show the last-known batches for this item
     // immediately (if any) instead of blanking to a spinner on every
-    // navigation — see MachineService for the full reasoning.
+    // navigation.
     final cached = BatchLotService.cachedByItemId[widget.item.id];
     if (cached != null) { _lots = cached; _loading = false; }
     _load();
@@ -840,7 +814,7 @@ class _SerialsTabState extends State<_SerialsTab>
     super.initState();
     // Stale-while-revalidate: show the last-known serials for this item
     // immediately (if any) instead of blanking to a spinner on every
-    // navigation — see MachineService for the full reasoning. Only seeded
+    // navigation. Only seeded
     // when starting on the unfiltered (All) view, matching how
     // SerialNumberService.cachedByItemId is populated.
     final cached = SerialNumberService.cachedByItemId[widget.item.id];
@@ -964,8 +938,6 @@ class _SerialCard extends StatelessWidget {
             Wrap(spacing: 14, children: [
               if (serial.locationName != null)
                 _SerialMeta(Symbols.location_on, serial.locationName!),
-              if (serial.machineName != null)
-                _SerialMeta(Symbols.medical_services, serial.machineName!),
               if (serial.warrantyExpiresAt != null)
                 _SerialMeta(
                   Symbols.verified_user,
@@ -1011,9 +983,8 @@ class _SerialMeta extends StatelessWidget {
 }
 
 // ── History tab ────────────────────────────────────────────────────────────────
-// Per-serial chain of custody: received → sold (which sale/hospital) →
-// installed (by whom) → signed off (by whom) — one row per physical unit,
-// oldest received first, until the count reaches zero. Distinct from the
+// Per-serial chain of custody: received → sold / issued (which sale or
+// reference) — one row per physical unit, oldest received first, until the count reaches zero. Distinct from the
 // Movements tab (raw item-level stock ledger) and Serials tab (current
 // snapshot only, no timeline).
 class _HistoryTab extends StatefulWidget {
@@ -1100,33 +1071,14 @@ class _HistoryCard extends StatelessWidget {
         ),
         _HistoryStep(
           icon: Symbols.sell,
-          label: entry.isEquipment ? 'Sold' : 'Sold / Issued',
+          label: 'Sold / Issued',
           done: entry.sold != null,
           detail: entry.sold != null
-              ? [entry.sold!.salesOrderNumber, entry.sold!.hospitalName]
+              ? [entry.sold!.salesOrderNumber, if (entry.sold!.deliveredAt != null) formatDate(entry.sold!.deliveredAt!)]
                   .whereType<String>().join(' · ')
               : 'Still in stock',
-          isLast: !entry.isEquipment,
+          isLast: true,
         ),
-        if (entry.isEquipment) ...[
-          _HistoryStep(
-            icon: Symbols.construction,
-            label: 'Installed',
-            done: entry.installed != null,
-            detail: entry.installed != null
-                ? '${entry.installed!.by ?? '—'} · ${entry.installed!.at != null ? formatDate(entry.installed!.at!) : ''}'
-                : 'Awaiting installation',
-          ),
-          _HistoryStep(
-            icon: Symbols.verified,
-            label: 'Signed off',
-            done: entry.signedOff != null,
-            detail: entry.signedOff != null
-                ? '${entry.signedOff!.by ?? '—'} · ${entry.signedOff!.at != null ? formatDate(entry.signedOff!.at!) : ''}'
-                : 'Awaiting sign-off',
-            isLast: true,
-          ),
-        ],
       ]),
     );
   }

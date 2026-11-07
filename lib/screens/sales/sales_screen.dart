@@ -667,7 +667,7 @@ class _NewDealDialogState extends State<_NewDealDialog> {
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(children: [
-                _SField('Hospital / Client', _hospCtrl, 'e.g. Mwananyamala Regional Hospital'),
+                _SField('Client', _hospCtrl, 'Client or company name'),
                 const SizedBox(height: 14),
                 _SField('Contact person', _contCtrl, 'e.g. Dr. James Mbeki'),
                 const SizedBox(height: 14),

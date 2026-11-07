@@ -412,16 +412,11 @@ class _SalesOrderDetailDialogState extends State<_SalesOrderDetailDialog> {
   }
 
   Future<void> _deliver() async {
-    final machinesCreated = await showDialog<int>(
+    final delivered = await showDialog<bool>(
       context: context,
       builder: (_) => _DeliverModal(order: widget.so),
     );
-    if (machinesCreated == null || !mounted) return;
-    if (machinesCreated > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Delivery recorded — $machinesCreated new machine${machinesCreated == 1 ? '' : 's'} registered for Service'),
-      ));
-    }
+    if (delivered != true || !mounted) return;
     Navigator.pop(context, true);
   }
 
@@ -821,7 +816,7 @@ class _DeliverModalState extends State<_DeliverModal> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final (_, machinesCreated) = await SalesOrderService.instance.deliver(
+      await SalesOrderService.instance.deliver(
         widget.order.id,
         items: widget.order.items.asMap().entries.map((e) => {
           'sales_order_item_id': e.value.id,
@@ -829,7 +824,7 @@ class _DeliverModalState extends State<_DeliverModal> {
         }).where((m) => (m['quantity_delivered'] as int) > 0).toList(),
         notes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : null,
       );
-      if (mounted) Navigator.pop(context, machinesCreated);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);

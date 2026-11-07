@@ -6,8 +6,6 @@ class SerialNumber {
   final bool    hasMissingParts;
   final int?    locationId;
   final String? locationName;
-  final int?    assignedToMachineId;
-  final String? machineName;
   final DateTime? purchaseDate;
   final DateTime? warrantyExpiresAt;
   final bool    isWarrantyExpired;
@@ -21,8 +19,6 @@ class SerialNumber {
     this.hasMissingParts = false,
     this.locationId,
     this.locationName,
-    this.assignedToMachineId,
-    this.machineName,
     this.purchaseDate,
     this.warrantyExpiresAt,
     this.isWarrantyExpired = false,
@@ -37,10 +33,6 @@ class SerialNumber {
     hasMissingParts:  j['has_missing_parts']   as bool? ?? false,
     locationId:       j['location_id'] != null ? (j['location_id'] as num).toInt() : null,
     locationName:     j['location_name']           as String?,
-    assignedToMachineId: j['assigned_to_machine_id'] != null
-        ? (j['assigned_to_machine_id'] as num).toInt()
-        : null,
-    machineName:      j['machine_name']            as String?,
     purchaseDate:     j['purchase_date'] != null
         ? DateTime.tryParse(j['purchase_date'] as String)
         : null,

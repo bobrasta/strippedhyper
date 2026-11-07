@@ -90,7 +90,6 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                   _receivePanel(context),
                   _movementsPanel(context),
                   _valuePanel(context),
-                  _machinesPanel(context),
                   _categoryPanel(context),
                 ]),
                 const SizedBox(height: 14),
@@ -101,7 +100,6 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                     ('inventory_requisitions', Symbols.assignment, 'Requisitions'),
                     ('inventory_orders', Symbols.receipt_long, 'Purchase Orders'),
                     ('inventory_locations', Symbols.warehouse, 'Locations'),
-                    ('machines', Symbols.precision_manufacturing, 'Machines'),
                   ])
                     ProcButton(label: label, icon: icon, onPressed: () => _go(key)),
                 ]),
@@ -130,12 +128,12 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
           '${_fmtInt(_int(k['units']))} units at cost'),
       KpiStripItem(Symbols.list_alt, ProcTone.green, 'Items in stock', _fmtInt(_int(k['in_stock'])),
           '$out out of stock · ${_fmtInt(_int(k['items']))} items'),
-      KpiStripItem(Symbols.warning, ProcTone.coral, 'Low stock', '$low', 'at or below reorder level', alarm: low > 0),
+      KpiStripItem(Symbols.warning, ProcTone.coral, 'Low stock', '$low',
+          'at or below reorder level · ${_int(w['requisitions_open'])} open requisition${_int(w['requisitions_open']) == 1 ? '' : 's'}',
+          alarm: low > 0),
       KpiStripItem(Symbols.local_shipping, ProcTone.amber, 'To receive', '${_int(w['pos_to_receive'])}',
           '${_int(w['stock_out_pending'])} stock-out request${_int(w['stock_out_pending']) == 1 ? '' : 's'} pending',
           alarm: _int(w['stock_out_pending']) > 0),
-      KpiStripItem(Symbols.precision_manufacturing, ProcTone.violet, 'Machines in stock', '${_int(w['machines_in_stock'])}',
-          '${_int(w['machines_allocated'])} allocated · ${_int(w['requisitions_open'])} open requisitions'),
     ];
   }
 
@@ -308,26 +306,6 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                   right: tshShort(_int(i['value'])),
                   sub: '${_fmtInt(_int(i['qty']))} × ${tshShort(_int(i['unit_cost']))}',
                   onTap: () => _go('inventory_items')),
-            ]),
-    );
-  }
-
-  Widget _machinesPanel(BuildContext context) {
-    final rows = _list('machines_in_stock');
-    final w = _map('waiting');
-    return ProcPanel(
-      title: 'Machines in stock', icon: Symbols.precision_manufacturing, iconColor: AppColors.violet,
-      trailing: _more('Machines', 'machines'),
-      footer: ProcNote('${_int(w['machines_in_stock'])} in stock · ${_int(w['machines_allocated'])} allocated to a hospital, not yet installed',
-          icon: Symbols.info),
-      child: rows.isEmpty
-          ? _empty(context, 'No machine is waiting in the store.')
-          : Column(children: [
-              for (final m in rows) _row(context,
-                  title: '${m['model'] ?? '—'}',
-                  right: '${m['serial_no'] ?? '—'}',
-                  sub: '${m['type'] ?? ''}',
-                  onTap: () => _go('machines')),
             ]),
     );
   }
