@@ -491,7 +491,7 @@ class _ApprovalsRail extends StatelessWidget {
   final double pad;
 
   static String _groupLabel(String? g) => switch (g) {
-    'field' => 'Field / Operations',
+    'field' => 'Field staff',
     'admin' => 'Admin / Executive',
     'office' => 'Office',
     _ => 'Unassigned',

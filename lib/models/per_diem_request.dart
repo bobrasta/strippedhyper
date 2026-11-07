@@ -87,7 +87,7 @@ class PerDiemLine {
 class PerDiemRevision {
   final int     id;
   final String? editedByName;
-  final String  editorRole; // cto | technician
+  final String  editorRole; // cto | requester (stored as 'technician')
   final String  status;     // applied | pending_cto_approval | rejected
   final String  reason;
   final String? reviewedByName;
@@ -149,7 +149,7 @@ class PerDiemEditGrant {
 // adjustment (extra amount to send, or amount to return)."
 class PerDiemAdjustment {
   final int     id;
-  final int     amount; // signed: + owed to technician, - to recover
+  final int     amount; // signed: + owed to the requester, - to recover
   final String  reason;
   final String? createdByName;
   final String? createdAt;

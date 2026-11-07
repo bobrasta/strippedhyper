@@ -382,7 +382,7 @@ class _LetterFormState extends State<_LetterForm> {
               const SizedBox(height: 12),
               LabeledTextField(label: 'Signatory title', hint: 'e.g. Managing Director', controller: _position),
               const SizedBox(height: 12),
-              LabeledTextField(label: 'To (recipient and address)', hint: 'The Executive Director\nMuhimbili National Hospital\nP.O. Box 65000\nDar es Salaam',
+              LabeledTextField(label: 'To (recipient and address)', hint: 'The Managing Director\nClient Company Ltd\nP.O. Box 65000\nDar es Salaam',
                   controller: _recipient, maxLines: 4),
               const SizedBox(height: 12),
               LabeledTextField(label: 'Subject', hint: 'Printed as RE: …', controller: _subject),

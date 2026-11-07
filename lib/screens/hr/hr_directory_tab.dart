@@ -244,7 +244,7 @@ class _HrDirectoryTabState extends State<HrDirectoryTab> {
         const SizedBox(height: 9),
         Wrap(spacing: 5, runSpacing: 5, children: [
           _filterChip('all', 'All ${_staff.length}'),
-          _filterChip('field', 'Field'),
+          _filterChip('field', 'Field staff'),
           _filterChip('office', 'Office'),
           _filterChip('admin', 'Admin'),
         ]),

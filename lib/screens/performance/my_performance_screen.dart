@@ -239,7 +239,7 @@ class _MyPerformanceScreenState extends State<MyPerformanceScreen> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('TASKS', style: AppTheme.labelCaps.copyWith(fontSize: 11)),
       const SizedBox(height: 4),
-      Text('No sales or field activity on your account this period — showing task completion only.',
+      Text('No sales activity on your account this period — showing task completion only.',
           style: AppTheme.bodySub.copyWith(fontSize: 11.5)),
     ]),
   );

@@ -22,7 +22,7 @@ class TaskItem {
   final int     id;
   final String  title;
   final String? description;
-  final String  category;       // field | sales | finance | office | cs | general
+  final String  category;       // sales | finance | office | cs | general (legacy: field)
   final String  taskType;       // PM | Customer Visit | Report | Meeting | Custom …
   final String  priority;       // critical | high | medium | low
   final String  status;         // assigned | in_progress | completed | overdue
@@ -57,9 +57,10 @@ class TaskItem {
     createdAt:        j['created_at'] as String? ?? '',
   );
 
-  // Task types available per category — drives the form dropdown
+  // Task types available per category — drives the new-task form dropdown.
+  // The old 'field' category (service work) is no longer offered; tasks
+  // already stored with category 'field' still load and display generically.
   static const Map<String, List<String>> typesByCategory = {
-    'field':   ['PM', 'Corrective', 'Inspection', 'Installation', 'Calibration', 'Service Report'],
     'sales':   ['Customer Visit', 'Follow-up Call', 'Demo', 'Proposal', 'Contract Review', 'Report'],
     'finance': ['Invoice Review', 'Monthly Report', 'Reconciliation', 'Budget Review', 'Audit'],
     'office':  ['Meeting Schedule', 'Calendar Update', 'Document Prep', 'Communication', 'Follow-up'],
@@ -69,7 +70,7 @@ class TaskItem {
 
   // Default category for each staff role
   static String defaultCategoryForRole(String? role) => switch (role) {
-    'technician' => 'field',
+    'technician' => 'general',
     'sales'      => 'sales',
     'finance'    => 'finance',
     'cs'         => 'cs',

@@ -166,14 +166,14 @@ class _TeamPerformanceScreenState extends State<TeamPerformanceScreen> {
       Row(children: [
         Icon(Symbols.medical_services, size: 13, color: AppColors.green),
         const SizedBox(width: 8),
-        Text('REVENUE BY HOSPITAL', style: AppTheme.labelCaps.copyWith(fontSize: 10.5)),
+        Text('REVENUE BY CLIENT', style: AppTheme.labelCaps.copyWith(fontSize: 10.5)),
         const SizedBox(width: 8),
         Expanded(child: Container(width: double.infinity, height: 1, color: context.pal.divider)),
         Text('top ${d.revenueByHospital.length}', style: AppTheme.monoXs.copyWith(fontSize: 10, color: context.pal.textMute)),
       ]),
       const SizedBox(height: 12),
       if (d.revenueByHospital.isEmpty)
-        Text('No confirmed revenue by hospital this month yet.', style: AppTheme.bodySub.copyWith(fontSize: 12))
+        Text('No confirmed revenue by client this month yet.', style: AppTheme.bodySub.copyWith(fontSize: 12))
       else
         ...d.revenueByHospital.map((h) => Padding(
           padding: const EdgeInsets.only(bottom: 9),

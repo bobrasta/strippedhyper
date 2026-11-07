@@ -32,7 +32,7 @@ List<OrgNode> _defaultNodes() {
   return [
     OrgNode(id: 'director', label: 'Director', parentId: null, x: 620, y: 40, colorIndex: 0),
     OrgNode(id: 'sales', label: 'Sales', parentId: 'director', x: 20, y: rowY, colorIndex: 1),
-    OrgNode(id: 'service', label: 'Service', parentId: 'director', x: 20 + spacing, y: rowY, colorIndex: 2),
+    OrgNode(id: 'service', label: 'Operations', parentId: 'director', x: 20 + spacing, y: rowY, colorIndex: 2),
     OrgNode(id: 'application', label: 'Application', parentId: 'director', x: 20 + spacing * 2, y: rowY, colorIndex: 3),
     OrgNode(id: 'finance', label: 'Accounts & Finance', parentId: 'director', x: 20 + spacing * 3, y: rowY, colorIndex: 4),
     OrgNode(id: 'warehouse', label: 'Warehouse & Logistics', parentId: 'director', x: 20 + spacing * 4, y: rowY, colorIndex: 5),
@@ -242,7 +242,7 @@ class _OrgChartEditorState extends State<OrgChartEditor> {
                 '— nodes are auto-arranged by hierarchy, then you can drag them freely.',
                 style: AppTheme.bodySub.copyWith(fontSize: 12)),
             const SizedBox(height: 10),
-            LabeledTextField(label: '', controller: ctrl, maxLines: 10, hint: 'flowchart TD\n    A[Director] --> B[Sales]\n    A --> C[Service]'),
+            LabeledTextField(label: '', controller: ctrl, maxLines: 10, hint: 'flowchart TD\n    A[Director] --> B[Sales]\n    A --> C[Operations]'),
             if (error != null) ...[
               const SizedBox(height: 8),
               Text(error!, style: AppTheme.bodySub.copyWith(color: Colors.redAccent, fontSize: 12)),

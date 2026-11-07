@@ -4406,16 +4406,16 @@ class _InviteDialogState extends State<_InviteDialog> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  String _role = 'technician';
-  String _group = 'field';
+  String _role = 'sales';
+  String _group = 'office';
   String _zone = 'Dar es Salaam';
   bool _saving = false;
   String? _error;
 
-  List<String> _roleNames = ['technician'];
+  List<String> _roleNames = ['sales'];
 
   static const _groups = ['field', 'office', 'admin'];
-  static const _groupLabels = ['Field Technician', 'Office / Sales', 'Admin'];
+  static const _groupLabels = ['Field staff', 'Office / Sales', 'Admin'];
   static const _zones = [
     'Dar es Salaam',
     'Arusha',
@@ -4440,8 +4440,8 @@ class _InviteDialogState extends State<_InviteDialog> {
       if (!mounted || roles.isEmpty) return;
       setState(() {
         _roleNames = roles.map((r) => r.name).toList();
-        _role = _roleNames.contains('technician')
-            ? 'technician'
+        _role = _roleNames.contains('sales')
+            ? 'sales'
             : _roleNames.first;
       });
     } catch (_) {

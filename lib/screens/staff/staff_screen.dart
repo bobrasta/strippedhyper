@@ -181,7 +181,9 @@ class _StaffScreenState extends State<StaffScreen> {
   );
 
   // ── Task grouping ─────────────────────────────────────────────────────────
-  static const _typeKeys = ['', 'field', 'sales', 'office', 'finance', 'cs', 'general'];
+  // No 'field' tab: field-service task types are retired. Legacy tasks whose
+  // category is still 'field' show under "All" with the generic colour.
+  static const _typeKeys = ['', 'sales', 'office', 'finance', 'cs', 'general'];
 
   _Task? get _task {
     if (_allTasks.isEmpty) return null;
@@ -451,9 +453,9 @@ class _TaskListPane extends StatelessWidget {
   final VoidCallback? onClearFilter;
   final VoidCallback? onExport;
 
-  static const _tabs = ['All', 'Field', 'Sales', 'Office', 'Finance', 'CS', 'General'];
+  static const _tabs = ['All', 'Sales', 'Office', 'Finance', 'CS', 'General'];
   static List<Color> get _tabColors => [
-    AppColors.textMute, AppColors.teal, AppColors.violet,
+    AppColors.textMute, AppColors.violet,
     AppColors.blue, AppColors.amber, AppColors.coral, AppColors.textDim,
   ];
 
@@ -655,7 +657,6 @@ class _TaskListItem extends StatelessWidget {
   };
 
   Color get _typeColor => switch (task.type) {
-    'field'   => AppColors.teal,
     'sales'   => AppColors.violet,
     'office'  => AppColors.blue,
     'finance' => AppColors.amber,
@@ -743,7 +744,6 @@ class _TaskDetailPane extends StatelessWidget {
   final VoidCallback? onDone;
 
   Color get _typeColor => switch (task.type) {
-    'field'   => AppColors.teal,
     'sales'   => AppColors.violet,
     'office'  => AppColors.blue,
     'finance' => AppColors.amber,
@@ -1012,7 +1012,7 @@ class _TeamAvailabilityPane extends StatelessWidget {
 
   static const _groups = [
     ('office', 'Office & Sales'),
-    ('field',  'Field Technicians'),
+    ('field',  'Field staff'),
     ('admin',  'Admin & External'),
   ];
 
@@ -1449,7 +1449,6 @@ class _NewTaskDialogState extends State<_NewTaskDialog> {
     'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
   ];
   static const _categoryLabels = {
-    'field':   'Field',
     'sales':   'Sales',
     'finance': 'Finance',
     'office':  'Office',
