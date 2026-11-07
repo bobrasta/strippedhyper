@@ -86,7 +86,7 @@ class HospitalController extends Controller
     public function store(Request $request)
     {
         abort_if(! $request->user()->hasHospitalManageAuthority(), 403,
-            'Access Denied: you do not have permission to add hospital records.');
+            'Access Denied: you do not have permission to add client records.');
 
         $data = $request->validate([
             'name'                => ['required', 'string'],
@@ -131,7 +131,7 @@ class HospitalController extends Controller
     public function update(Request $request, Hospital $hospital)
     {
         abort_if(! $request->user()->hasHospitalManageAuthority(), 403,
-            'Access Denied: you do not have permission to edit hospital records.');
+            'Access Denied: you do not have permission to edit client records.');
 
         $data = $request->validate([
             'name'                => ['sometimes', 'string'],
@@ -163,7 +163,7 @@ class HospitalController extends Controller
     public function destroy(Request $request, Hospital $hospital)
     {
         abort_if(! $request->user()->hasHospitalManageAuthority(), 403,
-            'Access Denied: you do not have permission to delete hospital records.');
+            'Access Denied: you do not have permission to delete client records.');
 
         $hospital->delete();
 

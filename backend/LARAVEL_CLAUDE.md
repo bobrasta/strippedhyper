@@ -30,6 +30,22 @@
 > in the schema, unused. `App\Models\ServiceTicket` / `ServiceTicketMachine`
 > survive only as bare stubs because two historical migrations import them.
 >
+> **Business-only (2026-11-07):** the hospital-directory import is removed
+> (`RealFacilityImportSeeder`, `UpdateFacilityCoordinatesSeeder`,
+> `ImportGovernmentFacilityCoordinatesSeeder`,
+> `ImportNationalFacilityRegistrySeeder`, `ImportDvasOpgCbctSeeder`,
+> `NormalizeKilimanjaroDistrictsSeeder`, `RemoveDemoDataSeeder`,
+> `data/national_facility_registry.csv`, and their deploy-chain steps).
+> Rows they imported into existing databases stay. User-visible text calls
+> the hospital record a "client"/"customer" — `lang/en/validation.php` maps
+> `hospital_id` → "client" in validation errors; column names and JSON keys
+> are unchanged. The lead follow-up template takes `{product}` (and still
+> fills `{machine_type}` for saved templates). The SERVICE flow diagram is no
+> longer seeded and is hidden by `FlowController::RETIRED`. Task category
+> `field` is still accepted for existing rows. The `technician` role and the
+> per-diem "technician edit" endpoints/keys remain (they are generic staff
+> flows now).
+>
 > The sections below describe the original full system; anything about
 > machines, service tickets, spare parts or the fleet map no longer applies.
 

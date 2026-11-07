@@ -12,12 +12,6 @@ cd "$1"
 PHP="${PHP:-php}"
 for seeder in \
   PermissionSeeder \
-  RealFacilityImportSeeder \
-  UpdateFacilityCoordinatesSeeder \
-  ImportGovernmentFacilityCoordinatesSeeder \
-  ImportNationalFacilityRegistrySeeder \
-  RemoveDemoDataSeeder \
-  NormalizeKilimanjaroDistrictsSeeder \
   FlowDepartmentSeeder \
   DocumentSequenceSeeder \
   NotificationTemplateSeeder \

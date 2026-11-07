@@ -15,6 +15,14 @@ part cannibalization) and hospitals-directory modules are removed. The
 `hospitals` table stays as the customer record. Old tables and columns are
 left in the schema unused (migrations are unchanged). See LARAVEL_CLAUDE.md.
 
+The hospital-directory import is gone too: the national facility registry,
+DVAS/OPG-CBCT and facility-coordinate seeders, `RemoveDemoDataSeeder`,
+`NormalizeKilimanjaroDistrictsSeeder` and `national_facility_registry.csv`,
+and their steps in `railway.toml` / `deploy/post-deploy.sh`. User-facing
+text says "client"/"customer" (validation names `hospital_id` "client" via
+`lang/en/validation.php`); demo seeders use business-neutral clients and
+products; the SERVICE flow diagram is hidden (`FlowController::RETIRED`).
+
 ## NeST tender tracker
 
 Pulls published tenders from NeST (nest.go.tz, Tanzania's e-procurement

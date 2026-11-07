@@ -25,7 +25,7 @@ class NotificationTemplateSeeder extends Seeder
 
             // ── Sales leads ──────────────────────────────────────────────
             ['lead.follow_up_due', 'lead_follow_up', 'Follow-up Due',
-                'Follow up with {client_name} — {machine_type} deal is due for a check-in.',
+                'Follow up with {client_name} — {product} deal is due for a check-in.',
                 'Sales rep — a lead\'s follow-up date is due or overdue'],
 
             // ── Expenses ─────────────────────────────────────────────────
@@ -121,7 +121,7 @@ class NotificationTemplateSeeder extends Seeder
             ['per_diem.rejected_requester', 'per_diem_rejected', 'Per-Diem Rejected',
                 "Your per-diem request for {destination} was rejected.{reason_suffix}",
                 'Requester — their per-diem request was rejected'],
-            // Section 8: day-by-day CTO editing, technician edit grants.
+            // Section 8: day-by-day CTO editing, staff edit grants.
             // Reuses existing notification types (per_diem_approved/
             // per_diem_rejected/per_diem_requested) rather than adding new
             // ones to the notifications table's type check constraint.
@@ -139,7 +139,7 @@ class NotificationTemplateSeeder extends Seeder
                 'Requester — the CTO revoked their travel plan edit access'],
             ['per_diem.technician_edit_submitted', 'per_diem_requested', 'Travel Plan Edit Submitted',
                 "{name} proposed changes to their travel plan for {destination} — needs your review.",
-                'CTO — a technician proposed an edit to their travel plan'],
+                'CTO — a staff member proposed an edit to their travel plan'],
             ['per_diem.technician_edit_approved', 'per_diem_approved', 'Your Proposed Edit Was Approved',
                 "Your proposed changes to the travel plan for {destination} were approved and applied.",
                 'Requester — the CTO approved their proposed travel plan edit'],

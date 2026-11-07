@@ -15,15 +15,20 @@ use Illuminate\Http\Request;
 // oversight — every other endpoint in this app stays behind auth:sanctum.
 class FlowController extends Controller
 {
+    // Diagrams of removed features (stripped build: service tickets). Rows
+    // may still exist in older databases; they are hidden, not deleted.
+    private const RETIRED = ['SERVICE'];
+
     public function index()
     {
         return response()->json([
-            'data' => FlowDepartment::orderBy('title')->get(['key', 'title', 'updated_by', 'updated_role', 'updated_at']),
+            'data' => FlowDepartment::whereNotIn('key', self::RETIRED)->orderBy('title')->get(['key', 'title', 'updated_by', 'updated_role', 'updated_at']),
         ]);
     }
 
     public function show(string $key)
     {
+        abort_if(in_array(strtoupper($key), self::RETIRED, true), 404);
         $department = FlowDepartment::where('key', strtoupper($key))->firstOrFail();
 
         return response()->json(['data' => $department]);
@@ -39,6 +44,7 @@ class FlowController extends Controller
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        abort_if(in_array(strtoupper($key), self::RETIRED, true), 404);
         $department = FlowDepartment::where('key', strtoupper($key))->firstOrFail();
         $department->update([
             'nodes' => $data['nodes'],

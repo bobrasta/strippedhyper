@@ -207,7 +207,7 @@ class TenderDocumentService
         $s->addTextBreak();
         $list = ['listType' => \PhpOffice\PhpWord\Style\ListItem::TYPE_NUMBER];
         $s->addListItem('The heading above is mainly concerned', 0, null, $list);
-        $s->addListItem("I would sincerely request for importation of {$device}. This machine is registered under the registration Number {$d->registration_number}.", 0, null, $list);
+        $s->addListItem("I would sincerely request for importation of {$device}. This device is registered under the registration Number {$d->registration_number}.", 0, null, $list);
         $s->addText("The certificates are attached with this application. {$purpose}", [], ['indentation' => ['left' => 720]]);
         $s->addListItem('We have full authority and training from the manufacturer and all quality proved documents are attached in the registration file', 0, null, $list);
         $s->addListItem('The certificate of registration is attached with this application.', 0, null, $list);

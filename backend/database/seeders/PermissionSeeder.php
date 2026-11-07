@@ -81,7 +81,7 @@ class PermissionSeeder extends Seeder
                 'sales.create_subordinate_user'=> ['Create Subordinate Sales Users', 'Add sales staff reporting to this user'],
             ],
             'hospitals' => [
-                'hospitals.manage' => ['Manage Customer Records', 'Create, edit, and delete customer (hospital) records'],
+                'hospitals.manage' => ['Manage Customer Records', 'Create, edit, and delete customer records'],
             ],
             'finance' => [
                 'finance.view_revenue'         => ['View Revenue Figures', 'See ledger revenue and profit numbers'],

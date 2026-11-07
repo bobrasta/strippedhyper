@@ -171,7 +171,7 @@ class ConnectionsService
             $m instanceof Expense => ['title' => $m->name, 'subtitle' => 'Expense', 'status' => $m->status, 'date' => self::d($m->expense_date)] + $money($m->amount, 'TZS'),
             $m instanceof PerDiemRequest => ['title' => 'Per diem ' . $m->id, 'subtitle' => $m->staff_name_snapshot . ' · ' . $m->destination, 'status' => $m->status, 'date' => self::d($m->start_date)] + $money($m->amount, 'TZS'),
             $m instanceof CreditorOpeningBalance => ['title' => 'Opening balance', 'subtitle' => 'As at ' . self::d($m->as_at), 'status' => null, 'date' => self::d($m->as_at)] + $money($m->amount, $m->currency),
-            $m instanceof \App\Models\Hospital => ['title' => $m->name, 'subtitle' => 'Hospital / customer', 'status' => null, 'date' => null] + $money(null, null),
+            $m instanceof \App\Models\Hospital => ['title' => $m->name, 'subtitle' => 'Customer', 'status' => null, 'date' => null] + $money(null, null),
             default => ['title' => class_basename($m) . ' ' . $m->getKey(), 'subtitle' => null, 'status' => null, 'date' => null] + $money(null, null),
         };
     }

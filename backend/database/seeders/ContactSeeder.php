@@ -10,18 +10,15 @@ class ContactSeeder extends Seeder
 {
     public function run(): void
     {
-        // hospital_id used to be a hardcoded 1-5, but those were the
-        // original demo hospitals RemoveDemoDataSeeder deletes in favor of
-        // the real facility import — this seeder was never updated to
-        // match, so it always failed by the time it ran in the chain.
+        // First five clients (hospitals table = customer records).
         $hospitalIds = Hospital::orderBy('id')->limit(5)->pluck('id')->values();
 
         $contacts = [
-            ['first_name' => 'Hamisi',   'last_name' => 'Salim',    'job_title' => 'Chief Medical Officer', 'department' => 'Administration', 'email' => 'h.salim@mnh.go.tz',       'phone' => '+255 22 215 0610', 'hospital_id' => $hospitalIds[0] ?? null, 'tags' => ['decision-maker', 'key-contact']],
-            ['first_name' => 'Rehema',   'last_name' => 'Ally',     'job_title' => 'Head Nurse',            'department' => 'Nursing',        'email' => 'r.ally@agakhan.or.tz',    'phone' => '+255 22 211 4096', 'hospital_id' => $hospitalIds[1] ?? null, 'tags' => ['procurement', 'key-contact']],
-            ['first_name' => 'Angela',   'last_name' => 'Mrema',    'job_title' => 'Biomedical Engineer',   'department' => 'Technical',      'email' => 'a.mrema@kcmc.ac.tz',      'phone' => '+255 27 275 4377', 'hospital_id' => $hospitalIds[2] ?? null, 'tags' => ['technical', 'key-contact']],
-            ['first_name' => 'Francis',  'last_name' => 'Magesa',   'job_title' => 'Procurement Officer',   'department' => 'Procurement',    'email' => 'f.magesa@bugando.go.tz',  'phone' => '+255 28 250 0611', 'hospital_id' => $hospitalIds[3] ?? null, 'tags' => ['procurement']],
-            ['first_name' => 'Consolata','last_name' => 'Mwita',    'job_title' => 'Hospital Director',     'department' => 'Administration', 'email' => 'c.mwita@dodoma.go.tz',    'phone' => '+255 26 232 1180', 'hospital_id' => $hospitalIds[4] ?? null, 'tags' => ['decision-maker']],
+            ['first_name' => 'Hamisi',   'last_name' => 'Salim',    'job_title' => 'Managing Director',     'department' => 'Administration', 'email' => 'h.salim@kariakoo.co.tz',       'phone' => '+255 22 215 0610', 'hospital_id' => $hospitalIds[0] ?? null, 'tags' => ['decision-maker', 'key-contact']],
+            ['first_name' => 'Rehema',   'last_name' => 'Ally',     'job_title' => 'Office Manager',        'department' => 'Operations',     'email' => 'r.ally@upangaoffice.co.tz',    'phone' => '+255 22 211 4096', 'hospital_id' => $hospitalIds[1] ?? null, 'tags' => ['procurement', 'key-contact']],
+            ['first_name' => 'Angela',   'last_name' => 'Mrema',    'job_title' => 'Operations Manager',    'department' => 'Operations',     'email' => 'a.mrema@moshisupplies.co.tz',      'phone' => '+255 27 275 4377', 'hospital_id' => $hospitalIds[2] ?? null, 'tags' => ['operations', 'key-contact']],
+            ['first_name' => 'Francis',  'last_name' => 'Magesa',   'job_title' => 'Procurement Officer',   'department' => 'Procurement',    'email' => 'f.magesa@lakezone.co.tz',  'phone' => '+255 28 250 0611', 'hospital_id' => $hospitalIds[3] ?? null, 'tags' => ['procurement']],
+            ['first_name' => 'Consolata','last_name' => 'Mwita',    'job_title' => 'Head of Supplies',      'department' => 'Administration', 'email' => 'c.mwita@dodomamc.go.tz',    'phone' => '+255 26 232 1180', 'hospital_id' => $hospitalIds[4] ?? null, 'tags' => ['decision-maker']],
         ];
 
         foreach ($contacts as $c) {
@@ -33,8 +30,8 @@ class ContactSeeder extends Seeder
             }
             $contact->interactions()->create([
                 'type'    => 'call',
-                'summary' => 'Initial follow-up call regarding equipment maintenance contract.',
-                'outcome' => 'Positive. Interested in annual service plan.',
+                'summary' => 'Initial follow-up call regarding a supply contract.',
+                'outcome' => 'Positive. Interested in an annual supply agreement.',
                 'next_action' => 'Send proposal document',
                 'next_action_date' => now()->addDays(7)->toDateString(),
             ]);

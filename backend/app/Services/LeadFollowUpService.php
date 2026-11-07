@@ -44,7 +44,10 @@ class LeadFollowUpService
                 'user_id'     => $lead->assigned_to,
                 ...app(NotificationTemplateService::class)->render('lead.follow_up_due', [
                     'client_name'  => $clientName,
-                    'machine_type' => $lead->machine_type,
+                    // {product}: what the lead is for. {machine_type} is the
+                    // same value, kept for templates saved before the rename.
+                    'product'      => $lead->machine_type ?: 'the',
+                    'machine_type' => $lead->machine_type ?: 'the',
                 ]),
                 'entity_type' => 'sales_lead',
                 'entity_id'   => $lead->id,
